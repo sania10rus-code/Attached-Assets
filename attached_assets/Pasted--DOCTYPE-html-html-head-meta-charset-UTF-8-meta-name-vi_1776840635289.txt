@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ОНИКС · Дашборд</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Иконки Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Шапка с 3D-заглушкой -->
+    <div class="header">
+      <div class="logo">⚡ ОНИКС</div>
+      <div class="car-model-placeholder">
+        <i class="fas fa-car-side"></i>
+        <span>Audi A6</span>
+      </div>
+    </div>
+
+    <!-- Карточки ключевых данных -->
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-label"><i class="fas fa-road"></i> Пробег</div>
+        <div class="card-value">102 345 <span>км</span></div>
+      </div>
+      <div class="card success">
+        <div class="card-label"><i class="fas fa-exclamation-triangle"></i> Ошибки</div>
+        <div class="card-value">0</div>
+      </div>
+      <div class="card">
+        <div class="card-label"><i class="fas fa-gas-pump"></i> Заправка</div>
+        <div class="card-value">7 <span>дней</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label"><i class="fas fa-thermometer-half"></i> Температура</div>
+        <div class="card-value">90<span>°C</span></div>
+      </div>
+    </div>
+
+    <!-- Кнопка подробнее -->
+    <button class="btn-details"><i class="fas fa-chevron-right"></i> Подробнее</button>
+
+    <!-- Баннер напоминания (как на макете) -->
+    <div class="reminder-banner">
+      <i class="fas fa-oil-can"></i>
+      <span>Замена масла через 5 000 км</span>
+      <i class="fas fa-chevron-right"></i>
+    </div>
+
+    <!-- Заказ-наряд (сокращённо) -->
+    <div class="order-card">
+      <div class="order-header">
+        <span class="order-title">ЗАКАЗ-НАРЯД ОНИКС-СЕРВИС</span>
+        <span class="order-date">21.10.2025, СПб</span>
+      </div>
+      <div class="order-items">
+        <div class="order-item"><span>Масляный фильтр MANN</span><span>1 300 ₽</span></div>
+        <div class="order-item"><span>Масло моторное Castrol</span><span>5 000 ₽</span></div>
+      </div>
+      <div class="order-total">ИТОГО 6 300 ₽</div>
+    </div>
+
+    <!-- Нижнее меню навигации -->
+    <div class="bottom-nav">
+      <div class="nav-item active"><i class="fas fa-tachometer-alt"></i><span>Главная</span></div>
+      <div class="nav-item"><i class="fas fa-history"></i><span>История</span></div>
+      <div class="nav-item"><i class="fas fa-bell"></i><span>Напом.</span></div>
+      <div class="nav-item"><i class="fas fa-file-invoice"></i><span>Заказы</span></div>
+      <div class="nav-item"><i class="fas fa-cog"></i><span>Ещё</span></div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

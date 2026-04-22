@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "ОНИКС Дашборд"
+version = "1.0.0"
+id = "artifacts/onyx-dashboard"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18870
+
+[services.development]
+run = "pnpm --filter @workspace/onyx-dashboard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/onyx-dashboard", "run", "build" ]
+publicDir = "artifacts/onyx-dashboard/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18870"
+BASE_PATH = "/"
