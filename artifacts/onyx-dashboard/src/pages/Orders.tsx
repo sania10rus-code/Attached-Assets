@@ -1,12 +1,33 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { FileText, Download } from "lucide-react";
+import { FileText, Download, Phone, MapPin, Clock } from "lucide-react";
 
-const orders = [
-  { id: "49281", date: "21.10.2025", total: "6 300 ₽", center: "ОНИКС-СЕРВИС СПб", items: 2 },
+type Item = { name: string; qty: number; price: number };
+
+const activeOrder = {
+  id: "49281",
+  date: "21.10.2025",
+  city: "Санкт-Петербург",
+  center: "ОНИКС-СЕРВИС",
+  status: "Ожидает выполнения",
+  items: [
+    { name: "Масляный фильтр MANN", qty: 1, price: 1300 },
+    { name: "Воздушный фильтр Bosch", qty: 1, price: 1200 },
+    { name: "Тормозные колодки TRW", qty: 1, price: 7000 },
+    { name: "Свечи NGK", qty: 4, price: 1100 },
+    { name: "Масло моторное Castrol", qty: 1, price: 5000 },
+  ] as Item[],
+  total: 18900,
+};
+
+const pastOrders = [
   { id: "48102", date: "15.04.2025", total: "24 500 ₽", center: "ОНИКС-СЕРВИС МСК", items: 5 },
   { id: "42011", date: "10.11.2024", total: "12 800 ₽", center: "ОНИКС-СЕРВИС СПб", items: 3 },
 ];
+
+function fmtRub(n: number) {
+  return n.toLocaleString("ru-RU") + " ₽";
+}
 
 export default function Orders() {
   return (
@@ -16,40 +37,108 @@ export default function Orders() {
       transition={{ duration: 0.3 }}
       className="p-6 pt-12 min-h-full"
     >
-      <h1 className="text-2xl font-bold mb-6">Заказ-наряды</h1>
+      <h1 className="text-2xl font-bold mb-1">Заказ-наряды</h1>
+      <p className="text-xs text-muted-foreground uppercase tracking-widest mb-6">Активные и архив</p>
 
-      <div className="space-y-4">
-        {orders.map((order, i) => (
+      {/* Active order */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="glass-card rounded-2xl p-5 border-primary/30 bg-primary/5 relative overflow-hidden mb-6"
+      >
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <FileText size={18} className="text-primary" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm">{activeOrder.center}</h3>
+              <p className="text-[11px] font-mono text-muted-foreground mt-0.5">№ {activeOrder.id}</p>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-full border border-primary/40 bg-primary/15 text-primary text-glow">
+            {activeOrder.status}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-4 text-[11px] text-muted-foreground mb-4 pb-4 border-b border-white/10">
+          <div className="flex items-center gap-1.5">
+            <Clock size={12} />
+            <span className="font-mono">{activeOrder.date}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <MapPin size={12} />
+            <span>{activeOrder.city}</span>
+          </div>
+        </div>
+
+        <div className="space-y-3 mb-4">
+          {activeOrder.items.map((it, i) => (
+            <div key={i} className="flex justify-between items-baseline gap-3 text-sm">
+              <div className="flex-1 min-w-0">
+                <div className="truncate">{it.name}</div>
+                <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                  {it.qty} шт. · {fmtRub(it.price)}
+                </div>
+              </div>
+              <span className="font-mono shrink-0">{fmtRub(it.qty * it.price)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-between items-center pt-4 border-t border-white/10 mb-4">
+          <span className="text-sm font-bold uppercase tracking-wider">Итого</span>
+          <span className="text-xl font-bold font-mono text-glow">{fmtRub(activeOrder.total)}</span>
+        </div>
+
+        <button
+          onClick={() => {
+            window.location.href = "tel:+78001234567";
+          }}
+          className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+        >
+          <Phone size={16} />
+          Связаться с сервисом
+        </button>
+      </motion.div>
+
+      {/* Past orders */}
+      <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 px-1">Архив</h2>
+      <div className="space-y-3">
+        {pastOrders.map((order, i) => (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: i * 0.1 }}
+            transition={{ duration: 0.3, delay: 0.1 + i * 0.07 }}
             key={order.id}
-            className="glass-card rounded-2xl p-5 border-white/5"
+            className="glass-card rounded-2xl p-4 border-white/5"
           >
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-                  <FileText size={18} className="text-muted-foreground" />
+                <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center">
+                  <FileText size={16} className="text-muted-foreground" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-sm font-mono">№ {order.id}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">{order.date}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{order.date}</p>
                 </div>
               </div>
               <button className="p-2 hover:bg-white/10 rounded-full transition-colors text-muted-foreground">
-                <Download size={18} />
+                <Download size={16} />
               </button>
             </div>
-            
-            <div className="bg-black/30 rounded-xl p-3 mb-4">
-              <div className="text-xs text-muted-foreground mb-1">{order.center}</div>
-              <div className="text-xs font-medium">{order.items} позиций в заказе</div>
+
+            <div className="bg-black/30 rounded-xl p-3 mb-3">
+              <div className="text-[11px] text-muted-foreground mb-0.5">{order.center}</div>
+              <div className="text-[11px] font-medium">{order.items} позиций в заказе</div>
             </div>
-            
+
             <div className="flex justify-between items-center">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Итого</span>
-              <span className="text-lg font-bold font-mono">{order.total}</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Итого</span>
+              <span className="text-base font-bold font-mono">{order.total}</span>
             </div>
           </motion.div>
         ))}
