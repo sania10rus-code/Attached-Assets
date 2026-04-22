@@ -1,68 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Droplet, Disc3, Zap, LogOut, CalendarClock } from "lucide-react";
+import { Droplet, Disc3, Zap, Wrench, Filter, AlertTriangle } from "lucide-react";
+import { loadAppData, formatMileage, formatDateRu, type Reminder, type Urgency, type Telemetry } from "@/lib/storage";
 
-type Urgency = "high" | "medium" | "low";
-
-type Reminder = {
-  id: number;
-  title: string;
-  desc: string;
-  due: string;
-  progress: number; // 0-100, higher = more urgent
-  urgency: Urgency;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-};
-
-const reminders: Reminder[] = [
-  {
-    id: 1,
-    title: "Замена масла",
-    desc: "Двигатель · Castrol Edge 5W-30",
-    due: "через 5 000 км",
-    progress: 85,
-    urgency: "high",
-    icon: Droplet,
-  },
-  {
-    id: 2,
-    title: "Замена тормозных колодок",
-    desc: "Передняя ось · TRW",
-    due: "через 2 000 км",
-    progress: 92,
-    urgency: "high",
-    icon: Disc3,
-  },
-  {
-    id: 3,
-    title: "Замена свечей",
-    desc: "4 шт. · NGK Iridium",
-    due: "через 7 000 км",
-    progress: 60,
-    urgency: "medium",
-    icon: Zap,
-  },
-  {
-    id: 4,
-    title: "Выезд из дилера",
-    desc: "Москва · отметка пробега",
-    due: "52 560 км",
-    progress: 30,
-    urgency: "low",
-    icon: LogOut,
-  },
-  {
-    id: 5,
-    title: "Запишитесь в сервис",
-    desc: "21 день после ТО · ОНИКС-СЕРВИС",
-    due: "через 21 день",
-    progress: 70,
-    urgency: "medium",
-    icon: CalendarClock,
-  },
-];
-
-const urgencyMeta: Record<Urgency, { label: string; chip: string; bar: string; iconWrap: string; icon: string; cardBorder: string }> = {
+const urgencyMeta: Record<Urgency, { label: string; chip: string; bar: string; iconWrap: string; icon: string; cardBorder: string; due: string }> = {
   high: {
     label: "Срочно",
     chip: "bg-primary/15 text-primary border-primary/30",
@@ -70,6 +11,7 @@ const urgencyMeta: Record<Urgency, { label: string; chip: string; bar: string; i
     iconWrap: "bg-primary/20",
     icon: "text-primary",
     cardBorder: "border-primary/30",
+    due: "text-primary text-glow",
   },
   medium: {
     label: "Скоро",
@@ -78,6 +20,7 @@ const urgencyMeta: Record<Urgency, { label: string; chip: string; bar: string; i
     iconWrap: "bg-amber-400/15",
     icon: "text-amber-400",
     cardBorder: "border-white/5",
+    due: "text-amber-400",
   },
   low: {
     label: "Запланировано",
@@ -86,10 +29,65 @@ const urgencyMeta: Record<Urgency, { label: string; chip: string; bar: string; i
     iconWrap: "bg-white/10",
     icon: "text-muted-foreground",
     cardBorder: "border-white/5",
+    due: "text-muted-foreground",
   },
 };
 
+function pickIcon(text: string) {
+  const t = text.toLowerCase();
+  if (t.includes("масл")) return Droplet;
+  if (t.includes("колод")) return Disc3;
+  if (t.includes("свеч")) return Zap;
+  if (t.includes("ремн") || t.includes("грм")) return Wrench;
+  if (t.includes("фильтр")) return Filter;
+  if (t.includes("тормозной жидкости")) return AlertTriangle;
+  return Wrench;
+}
+
+function dueText(r: Reminder, mileage: number): string {
+  if (r.dueMileage != null) {
+    const km = r.dueMileage - mileage;
+    if (km <= 0) return "просрочено";
+    return `через ${formatMileage(km)} км`;
+  }
+  if (r.dueDate) {
+    return `до ${formatDateRu(r.dueDate)}`;
+  }
+  return "";
+}
+
+function progressFor(r: Reminder, mileage: number): number {
+  if (r.dueMileage != null && r.interval > 0) {
+    const remaining = r.dueMileage - mileage;
+    const used = r.interval - remaining;
+    const pct = Math.max(0, Math.min(100, (used / r.interval) * 100));
+    return pct;
+  }
+  if (r.dueDate) {
+    const now = Date.now();
+    const due = new Date(r.dueDate).getTime();
+    const yearMs = 365 * 24 * 3600 * 1000;
+    const totalMs = (r.interval || 1) * yearMs;
+    const remaining = due - now;
+    const used = totalMs - remaining;
+    return Math.max(0, Math.min(100, (used / totalMs) * 100));
+  }
+  return 0;
+}
+
 export default function Reminders() {
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [telemetry, setTelemetry] = useState<Telemetry | null>(null);
+
+  useEffect(() => {
+    const data = loadAppData();
+    const order: Record<Urgency, number> = { high: 0, medium: 1, low: 2 };
+    setReminders([...data.reminders].sort((a, b) => order[a.urgency] - order[b.urgency]));
+    setTelemetry(data.telemetry);
+  }, []);
+
+  if (!telemetry) return null;
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -103,6 +101,9 @@ export default function Reminders() {
       <div className="space-y-3">
         {reminders.map((r, i) => {
           const m = urgencyMeta[r.urgency];
+          const Icon = pickIcon(r.text);
+          const due = dueText(r, telemetry.mileage);
+          const pct = progressFor(r, telemetry.mileage);
           return (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -113,29 +114,31 @@ export default function Reminders() {
             >
               <div className="flex items-start gap-4">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${m.iconWrap}`}>
-                  <r.icon size={20} className={m.icon} />
+                  <Icon size={20} className={m.icon} />
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2 mb-0.5">
-                    <h3 className="font-semibold text-sm leading-tight">{r.title}</h3>
+                    <h3 className="font-semibold text-sm leading-tight">{r.text}</h3>
                     <span className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border ${m.chip} shrink-0`}>
                       {m.label}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-snug">{r.desc}</p>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    {r.dueMileage != null
+                      ? `Регламент: каждые ${formatMileage(r.interval)} км`
+                      : `Регламент: каждые ${r.interval} года`}
+                  </p>
 
                   <div className="mt-3">
                     <div className="flex justify-between items-baseline mb-1.5">
                       <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Остаток ресурса</span>
-                      <span className={`text-xs font-mono font-medium ${r.urgency === "high" ? "text-primary text-glow" : r.urgency === "medium" ? "text-amber-400" : "text-muted-foreground"}`}>
-                        {r.due}
-                      </span>
+                      <span className={`text-xs font-mono font-medium ${m.due}`}>{due}</span>
                     </div>
                     <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
-                        animate={{ width: `${r.progress}%` }}
+                        animate={{ width: `${pct}%` }}
                         transition={{ duration: 0.8, delay: 0.2 + i * 0.07, ease: "easeOut" }}
                         className={`h-full rounded-full ${m.bar}`}
                       />

@@ -1,35 +1,20 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { FileText, Download, Phone, MapPin, Clock } from "lucide-react";
-
-type Item = { name: string; qty: number; price: number };
-
-const activeOrder = {
-  id: "49281",
-  date: "21.10.2025",
-  city: "Санкт-Петербург",
-  center: "ОНИКС-СЕРВИС",
-  status: "Ожидает выполнения",
-  items: [
-    { name: "Масляный фильтр MANN", qty: 1, price: 1300 },
-    { name: "Воздушный фильтр Bosch", qty: 1, price: 1200 },
-    { name: "Тормозные колодки TRW", qty: 1, price: 7000 },
-    { name: "Свечи NGK", qty: 4, price: 1100 },
-    { name: "Масло моторное Castrol", qty: 1, price: 5000 },
-  ] as Item[],
-  total: 18900,
-};
+import { loadAppData, formatRub, formatDateRu, type Order } from "@/lib/storage";
 
 const pastOrders = [
-  { id: "48102", date: "15.04.2025", total: "24 500 ₽", center: "ОНИКС-СЕРВИС МСК", items: 5 },
-  { id: "42011", date: "10.11.2024", total: "12 800 ₽", center: "ОНИКС-СЕРВИС СПб", items: 3 },
+  { id: "48102", date: "2025-04-15", total: 24500, center: "ОНИКС-СЕРВИС МСК", items: 5 },
+  { id: "42011", date: "2024-11-10", total: 12800, center: "ОНИКС-СЕРВИС СПб", items: 3 },
 ];
 
-function fmtRub(n: number) {
-  return n.toLocaleString("ru-RU") + " ₽";
-}
-
 export default function Orders() {
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    setOrders(loadAppData().orders);
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -40,72 +25,73 @@ export default function Orders() {
       <h1 className="text-2xl font-bold mb-1">Заказ-наряды</h1>
       <p className="text-xs text-muted-foreground uppercase tracking-widest mb-6">Активные и архив</p>
 
-      {/* Active order */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        className="glass-card rounded-2xl p-5 border-primary/30 bg-primary/5 relative overflow-hidden mb-6"
-      >
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
-
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-              <FileText size={18} className="text-primary" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm">{activeOrder.center}</h3>
-              <p className="text-[11px] font-mono text-muted-foreground mt-0.5">№ {activeOrder.id}</p>
-            </div>
-          </div>
-          <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-full border border-primary/40 bg-primary/15 text-primary text-glow">
-            {activeOrder.status}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-4 text-[11px] text-muted-foreground mb-4 pb-4 border-b border-white/10">
-          <div className="flex items-center gap-1.5">
-            <Clock size={12} />
-            <span className="font-mono">{activeOrder.date}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <MapPin size={12} />
-            <span>{activeOrder.city}</span>
-          </div>
-        </div>
-
-        <div className="space-y-3 mb-4">
-          {activeOrder.items.map((it, i) => (
-            <div key={i} className="flex justify-between items-baseline gap-3 text-sm">
-              <div className="flex-1 min-w-0">
-                <div className="truncate">{it.name}</div>
-                <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
-                  {it.qty} шт. · {fmtRub(it.price)}
-                </div>
-              </div>
-              <span className="font-mono shrink-0">{fmtRub(it.qty * it.price)}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex justify-between items-center pt-4 border-t border-white/10 mb-4">
-          <span className="text-sm font-bold uppercase tracking-wider">Итого</span>
-          <span className="text-xl font-bold font-mono text-glow">{fmtRub(activeOrder.total)}</span>
-        </div>
-
-        <button
-          onClick={() => {
-            window.location.href = "tel:+78001234567";
-          }}
-          className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+      {orders.map((order) => (
+        <motion.div
+          key={order.id}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="glass-card rounded-2xl p-5 border-primary/30 bg-primary/5 relative overflow-hidden mb-6"
         >
-          <Phone size={16} />
-          Связаться с сервисом
-        </button>
-      </motion.div>
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
 
-      {/* Past orders */}
+          <div className="flex justify-between items-start mb-4 gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <FileText size={18} className="text-primary" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-bold text-sm truncate">{order.service}</h3>
+                <p className="text-[11px] font-mono text-muted-foreground mt-0.5">№ {order.id}</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-full border border-primary/40 bg-primary/15 text-primary text-glow shrink-0 text-center leading-tight">
+              {order.status}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-4 text-[11px] text-muted-foreground mb-4 pb-4 border-b border-white/10">
+            <div className="flex items-center gap-1.5">
+              <Clock size={12} />
+              <span className="font-mono">{formatDateRu(order.date)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <MapPin size={12} />
+              <span>{order.city}</span>
+            </div>
+          </div>
+
+          <div className="space-y-3 mb-4">
+            {order.items.map((it, i) => (
+              <div key={i} className="flex justify-between items-baseline gap-3 text-sm">
+                <div className="flex-1 min-w-0">
+                  <div className="truncate">{it.name}</div>
+                  <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                    {it.qty} шт.
+                  </div>
+                </div>
+                <span className="font-mono shrink-0">{formatRub(it.price)}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-between items-center pt-4 border-t border-white/10 mb-4">
+            <span className="text-sm font-bold uppercase tracking-wider">Итого</span>
+            <span className="text-xl font-bold font-mono text-glow">{formatRub(order.total)}</span>
+          </div>
+
+          <button
+            onClick={() => {
+              window.location.href = "tel:+78001234567";
+            }}
+            className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+          >
+            <Phone size={16} />
+            Связаться с сервисом
+          </button>
+        </motion.div>
+      ))}
+
       <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 px-1">Архив</h2>
       <div className="space-y-3">
         {pastOrders.map((order, i) => (
@@ -123,7 +109,7 @@ export default function Orders() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-sm font-mono">№ {order.id}</h3>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{order.date}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{formatDateRu(order.date)}</p>
                 </div>
               </div>
               <button className="p-2 hover:bg-white/10 rounded-full transition-colors text-muted-foreground">
@@ -138,7 +124,7 @@ export default function Orders() {
 
             <div className="flex justify-between items-center">
               <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Итого</span>
-              <span className="text-base font-bold font-mono">{order.total}</span>
+              <span className="text-base font-bold font-mono">{formatRub(order.total)}</span>
             </div>
           </motion.div>
         ))}

@@ -1,0 +1,105 @@
+// ==========================================
+// ОНИКС - АВТОНОМНОЕ ХРАНИЛИЩЕ ДАННЫХ
+// ==========================================
+
+const STORAGE_KEY = 'onix_offline_data_v1';
+
+// Базовые данные для Skoda Octavia A5 (регламент обновлён)
+const defaultData = {
+  carModel: 'Skoda Octavia A5',
+  carYear: 2007, // пример, можно будет поменять
+  // Данные с OBD / ручного ввода
+  telemetry: {
+    mileage: 102345,        // общий пробег, км
+    temperature: 90,        // температура двигателя, °C
+    rpm: 0,                 // обороты (будет приходить с OBD)
+    speed: 0,               // скорость
+    batteryVoltage: 12.4,   // напряжение АКБ
+    lastUpdate: null        // когда последний раз обновлялись данные
+  },
+  // История событий (как в макете IMG_4635, но для Octavia)
+  history: [
+    { type: 'ТО', desc: 'ТО у дилера', place: 'Москва', mileage: 80000, date: '2025-01-15', icon: 'wrench' },
+    { type: 'ДТП', desc: 'ДТП, передний бампер', place: 'Москва', mileage: 75280, date: '2021-09-10', icon: 'car-crash' },
+    { type: 'Ремонт', desc: 'Замена тормозных колодок', place: 'Москва', mileage: 75280, date: '2024-11-20', icon: 'brake' },
+    { type: 'Ошибка', desc: 'Ошибка P0141 (датчик кислорода)', place: '', mileage: 60000, date: '2020-01-02', icon: 'engine' },
+    { type: 'Покупка', desc: 'Выезд из дилера', place: 'Москва', mileage: 52560, date: '2018-05-10', icon: 'key' },
+    { type: 'ТО', desc: 'Замена масла', place: 'Москва', mileage: 40000, date: '2017-01-01', icon: 'oil' }
+  ],
+  // Напоминания (адаптированы под Octavia A5)
+  reminders: [
+    { id: 1, text: 'Замена масла', dueMileage: 105000, interval: 15000, urgency: 'medium' },
+    { id: 2, text: 'Замена тормозных колодок', dueMileage: 103000, interval: 20000, urgency: 'high' },
+    { id: 3, text: 'Замена свечей зажигания', dueMileage: 110000, interval: 60000, urgency: 'low' },
+    { id: 4, text: 'Проверка ремня ГРМ', dueMileage: 120000, interval: 60000, urgency: 'medium' },
+    { id: 5, text: 'Замена воздушного фильтра', dueMileage: 108000, interval: 30000, urgency: 'medium' },
+    { id: 6, text: 'Замена тормозной жидкости', dueDate: '2026-10-01', interval: 2, urgency: 'low' }
+  ],
+  // Активные заказ-наряды
+  orders: [
+    {
+      id: '49281',
+      date: '2025-10-21',
+      service: 'ОНИКС-СЕРВИС',
+      city: 'Санкт-Петербург',
+      status: 'Ожидает выполнения',
+      items: [
+        { name: 'Масляный фильтр MANN', qty: 1, price: 1300 },
+        { name: 'Воздушный фильтр Bosch', qty: 1, price: 1200 },
+        { name: 'Тормозные колодки TRW', qty: 1, price: 7000 },
+        { name: 'Свечи NGK', qty: 4, price: 4400 },
+        { name: 'Масло моторное Castrol', qty: 1, price: 5000 }
+      ],
+      total: 18900
+    }
+  ],
+  // Очередь синхронизации (действия, которые нужно отправить на сервер при появлении сети)
+  pendingSync: []
+};
+
+// Загружаем данные из localStorage
+function loadAppData() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    } else {
+      // Если данных нет, сохраняем дефолтные и возвращаем их
+      saveAppData(defaultData);
+      return defaultData;
+    }
+  } catch (e) {
+    console.error('Ошибка загрузки данных, используем значения по умолчанию', e);
+    return defaultData;
+  }
+}
+
+// Сохраняем данные в localStorage
+function saveAppData(data) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    console.log('✅ Данные сохранены локально');
+  } catch (e) {
+    console.error('❌ Ошибка сохранения данных', e);
+  }
+}
+
+// Обновить конкретное поле телеметрии
+function updateTelemetry(field, value) {
+  const data = loadAppData();
+  data.telemetry[field] = value;
+  data.telemetry.lastUpdate = new Date().toISOString();
+  saveAppData(data);
+}
+
+// Добавить событие в историю
+function addHistoryEvent(event) {
+  const data = loadAppData();
+  data.history.unshift(event); // новые сверху
+  saveAppData(data);
+}
+
+// Экспорт (для использования в других файлах)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { loadAppData, saveAppData, updateTelemetry, addHistoryEvent };
+}

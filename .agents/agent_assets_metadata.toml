@@ -6,3 +6,9 @@ id = "e80qdJOUYoKtLXHS436Ha"
 uri = "file://artifacts/onyx-dashboard/public/audi-a6.png"
 type = "image"
 title = "Audi A6 dark 3D render"
+
+[[generated]]
+id = "vHApcve5Uz6UH6YfC2_ut"
+uri = "file://artifacts/onyx-dashboard/public/skoda-octavia.png"
+type = "image"
+title = "generated_image"
