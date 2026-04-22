@@ -1,0 +1,61 @@
+// ОНИКС - логика переключения экранов и заглушка данных
+
+// Ждём, пока страница загрузится
+document.addEventListener('DOMContentLoaded', function() {
+  
+  // Находим все пункты нижнего меню
+  const navItems = document.querySelectorAll('.nav-item');
+  
+  // Находим контейнеры для разных экранов (пока у нас есть только главный экран, но мы добавим остальные)
+  // Если контейнеров нет - создадим их динамически
+  const appContainer = document.querySelector('.app') || document.body;
+  
+  // Функция для смены активного пункта меню
+  function setActiveTab(selectedTab) {
+    navItems.forEach(item => {
+      item.classList.remove('active');
+    });
+    selectedTab.classList.add('active');
+    
+    // Получаем текст вкладки (например, "История")
+    const tabText = selectedTab.querySelector('span')?.innerText || '';
+    
+    // Показываем сообщение о том, что раздел в разработке (для всех кроме "Главная")
+    if (tabText.includes('История')) {
+      alert('📋 Раздел "История" появится здесь.\nЗдесь будет лента событий: ТО, ДТП, замены.');
+    } else if (tabText.includes('Напом')) {
+      alert('🔔 Раздел "Напоминания" появится здесь.\nСписок предстоящих работ по регламенту.');
+    } else if (tabText.includes('Заказы')) {
+      alert('📦 Раздел "Заказы" появится здесь.\nИстория заказ-нарядов из сервиса.');
+    } else if (tabText.includes('Ещё')) {
+      alert('⚙️ Настройки и дополнительная информация.');
+    }
+    // Для "Главная" ничего не делаем, просто остаёмся на дашборде
+  }
+  
+  // Навешиваем обработчики на пункты меню
+  navItems.forEach(item => {
+    item.addEventListener('click', function(e) {
+      setActiveTab(this);
+    });
+  });
+  
+  // Добавляем возможность нажать "Подробнее"
+  const detailsBtn = document.querySelector('.btn-details');
+  if (detailsBtn) {
+    detailsBtn.addEventListener('click', function() {
+      alert('🔍 Здесь будет расширенная диагностика:\n- Детальные показатели датчиков\n- Графики температуры и нагрузки');
+    });
+  }
+  
+  // Оживляем баннер "Замена масла"
+  const reminderBanner = document.querySelector('.reminder-banner');
+  if (reminderBanner) {
+    reminderBanner.style.cursor = 'pointer';
+    reminderBanner.addEventListener('click', function() {
+      alert('🛢️ Замена масла рекомендована через 5 000 км.\nЗаписаться в сервис?');
+    });
+  }
+  
+  console.log('ОНИКС: интерактивный режим активирован');
+});
