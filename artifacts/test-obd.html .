@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OBD Тест — ОНИКС</title>
+  <style>
+    body {
+      background: #0f131a;
+      color: white;
+      font-family: system-ui;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .container {
+      text-align: center;
+      padding: 20px;
+    }
+    button {
+      background: #1e3a5f;
+      border: none;
+      color: white;
+      padding: 18px 30px;
+      font-size: 20px;
+      border-radius: 50px;
+      margin: 10px;
+      cursor: pointer;
+      border: 1px solid #3a6a9f;
+    }
+    .data {
+      background: #1a2532;
+      padding: 20px;
+      border-radius: 20px;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🚗 ОНИКС · Тест OBD</h2>
+    <button onclick="window.emulateOBDData()">📡 Эмулировать данные OBD</button>
+    <button onclick="window.location.reload()">🔄 Обновить страницу</button>
+    <div class="data" id="telemetryDisplay">
+      Нажмите кнопку, чтобы сгенерировать данные...
+    </div>
+  </div>
+
+  <!-- Подключаем хранилище и OBD -->
+  <script src="onix-storage.js"></script>
+
+  <script>
+    // Показываем текущие данные из хранилища
+    function showCurrentTelemetry() {
+      const data = loadAppData();
+      const t = data.telemetry;
+      document.getElementById('telemetryDisplay').innerHTML = `
+        <p>🚘 ${data.carModel} (${data.carYear})</p>
+        <p>📊 Пробег: ${t.mileage} км</p>
+        <p>🌡️ Температура: ${t.temperature}°C</p>
+        <p>⚡ Обороты: ${t.rpm} об/мин</p>
+        <p>💨 Скорость: ${t.speed} км/ч</p>
+        <p>🔋 Напряжение: ${t.batteryVoltage} В</p>
+        <p><small>Последнее обновление: ${t.lastUpdate || 'нет'}</small></p>
+      `;
+    }
+
+    // При загрузке показываем данные
+    document.addEventListener('DOMContentLoaded', showCurrentTelemetry);
+
+    // Переопределяем функцию эмуляции, чтобы она обновляла отображение
+    const originalEmulate = window.emulateOBDData;
+    window.emulateOBDData = function() {
+      if (originalEmulate) originalEmulate();
+      setTimeout(showCurrentTelemetry, 500);
+    };
+  </script>
+</body>
+</html>

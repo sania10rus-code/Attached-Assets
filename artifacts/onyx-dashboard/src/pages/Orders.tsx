@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import { FileText, Download, Phone, MapPin, Clock } from "lucide-react";
-import { loadAppData, formatRub, formatDateRu, type Order } from "@/lib/storage";
+import { formatRub, formatDateRu } from "@/lib/storage";
+import { useAppData } from "@/hooks/useAppData";
 
 const pastOrders = [
   { id: "48102", date: "2025-04-15", total: 24500, center: "ОНИКС-СЕРВИС МСК", items: 5 },
@@ -9,11 +10,7 @@ const pastOrders = [
 ];
 
 export default function Orders() {
-  const [orders, setOrders] = useState<Order[]>([]);
-
-  useEffect(() => {
-    setOrders(loadAppData().orders);
-  }, []);
+  const { orders } = useAppData();
 
   return (
     <motion.div

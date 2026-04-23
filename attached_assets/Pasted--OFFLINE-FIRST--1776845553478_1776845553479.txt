@@ -1,0 +1,87 @@
+// ==========================================
+// ОНИКС - СИНХРОНИЗАЦИЯ С СЕРВЕРОМ (OFFLINE-FIRST)
+// ==========================================
+
+let isSyncing = false;
+const SYNC_API_URL = 'https://api.onix-service.com/sync'; // Заглушка, можно заменить на реальный адрес позже
+
+// Проверка, есть ли интернет
+function isOnline() {
+  return navigator.onLine;
+}
+
+// Главная функция синхронизации
+async function syncWithServer() {
+  if (!isOnline() || isSyncing) {
+    console.log('📴 Синхронизация отложена: нет сети или уже выполняется');
+    return;
+  }
+
+  const appData = loadAppData();
+  const pendingItems = appData.pendingSync;
+
+  if (!pendingItems || pendingItems.length === 0) {
+    console.log('📭 Очередь синхронизации пуста');
+    return;
+  }
+
+  console.log(`🔄 Начинаем синхронизацию ${pendingItems.length} элементов...`);
+  isSyncing = true;
+
+  try {
+    // Имитация отправки на сервер (в реальном проекте здесь будет fetch)
+    // Для демо просто выводим в консоль и очищаем очередь
+    console.log('📤 Отправляем данные:', pendingItems);
+    
+    // Имитация задержки сети
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Очищаем очередь после успешной отправки
+    appData.pendingSync = [];
+    saveAppData(appData);
+    console.log('✅ Синхронизация завершена успешно');
+    
+  } catch (error) {
+    console.error('❌ Ошибка синхронизации:', error);
+  } finally {
+    isSyncing = false;
+  }
+}
+
+// Добавить действие в очередь синхронизации
+function addToSyncQueue(actionType, payload) {
+  const appData = loadAppData();
+  if (!appData.pendingSync) appData.pendingSync = [];
+  
+  appData.pendingSync.push({
+    id: Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+    type: actionType,
+    payload: payload,
+    timestamp: new Date().toISOString()
+  });
+  
+  saveAppData(appData);
+  console.log(`📌 Действие "${actionType}" добавлено в очередь (всего: ${appData.pendingSync.length})`);
+  
+  // Если есть интернет, сразу пробуем синхронизировать
+  if (isOnline()) {
+    syncWithServer();
+  }
+}
+
+// Вешаем слушатели на события сети
+window.addEventListener('online', () => {
+  console.log('🌐 Появилось подключение к сети');
+  syncWithServer();
+});
+
+window.addEventListener('offline', () => {
+  console.log('📴 Соединение потеряно, работаем офлайн');
+});
+
+// При загрузке страницы проверяем очередь
+document.addEventListener('DOMContentLoaded', () => {
+  if (isOnline()) {
+    syncWithServer();
+  }
+});

@@ -129,13 +129,47 @@ export function loadAppData(): AppData {
   }
 }
 
+type Listener = (data: AppData) => void;
+const listeners = new Set<Listener>();
+
+export function subscribe(fn: Listener): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
 export function saveAppData(data: AppData): void {
   if (!isBrowser()) return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    listeners.forEach((fn) => {
+      try {
+        fn(data);
+      } catch (e) {
+        console.error(e);
+      }
+    });
   } catch (e) {
     console.error("Ошибка сохранения данных", e);
   }
+}
+
+export function updateTelemetry(patch: Partial<Telemetry>): AppData {
+  const current = loadAppData();
+  const next: AppData = {
+    ...current,
+    telemetry: {
+      ...current.telemetry,
+      ...patch,
+      lastUpdate: new Date().toISOString(),
+    },
+  };
+  saveAppData(next);
+  return next;
+}
+
+export function resetAppData(): AppData {
+  saveAppData(defaultData);
+  return defaultData;
 }
 
 export function formatMileage(km: number): string {

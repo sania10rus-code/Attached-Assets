@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Droplet, Disc3, Zap, Wrench, Filter, AlertTriangle } from "lucide-react";
-import { loadAppData, formatMileage, formatDateRu, type Reminder, type Urgency, type Telemetry } from "@/lib/storage";
+import { formatMileage, formatDateRu, type Reminder, type Urgency } from "@/lib/storage";
+import { useAppData } from "@/hooks/useAppData";
 
 const urgencyMeta: Record<Urgency, { label: string; chip: string; bar: string; iconWrap: string; icon: string; cardBorder: string; due: string }> = {
   high: {
@@ -76,17 +77,13 @@ function progressFor(r: Reminder, mileage: number): number {
 }
 
 export default function Reminders() {
-  const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [telemetry, setTelemetry] = useState<Telemetry | null>(null);
-
-  useEffect(() => {
-    const data = loadAppData();
+  const data = useAppData();
+  const reminders = useMemo<Reminder[]>(() => {
     const order: Record<Urgency, number> = { high: 0, medium: 1, low: 2 };
-    setReminders([...data.reminders].sort((a, b) => order[a.urgency] - order[b.urgency]));
-    setTelemetry(data.telemetry);
-  }, []);
-
-  if (!telemetry) return null;
+    return [...data.reminders].sort((a, b) => order[a.urgency] - order[b.urgency]);
+  }, [data.reminders]);
+  const telemetry = data.telemetry;
+  const currentMileage = Math.floor(telemetry.mileage);
 
   return (
     <motion.div
@@ -102,8 +99,8 @@ export default function Reminders() {
         {reminders.map((r, i) => {
           const m = urgencyMeta[r.urgency];
           const Icon = pickIcon(r.text);
-          const due = dueText(r, telemetry.mileage);
-          const pct = progressFor(r, telemetry.mileage);
+          const due = dueText(r, currentMileage);
+          const pct = progressFor(r, currentMileage);
           return (
             <motion.div
               initial={{ opacity: 0, y: 10 }}

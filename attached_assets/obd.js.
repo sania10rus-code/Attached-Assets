@@ -1,0 +1,120 @@
+// ==========================================
+// ОНИКС - ПОДКЛЮЧЕНИЕ К OBD-II (ELM327)
+// ==========================================
+
+// Проверяем, поддерживает ли браузер Web Bluetooth
+function isBluetoothSupported() {
+  return 'bluetooth' in navigator;
+}
+
+// Функция для подключения к OBD-адаптеру
+async function connectToOBD() {
+  if (!isBluetoothSupported()) {
+    alert('Web Bluetooth не поддерживается. На iPhone эта функция работает только в специальных браузерах (например, Bluefy).');
+    return;
+  }
+
+  try {
+    console.log('🔍 Ищем OBD-устройства...');
+
+    // Запрос устройства с нужным сервисом (стандартный для ELM327)
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: ['0000fff0-0000-1000-8000-00805f9b34fb'] }],
+      optionalServices: []
+    });
+
+    console.log('📱 Устройство выбрано:', device.name);
+
+    // Подключаемся к GATT-серверу
+    const server = await device.gatt.connect();
+    console.log('🔌 Подключены к GATT');
+
+    // Получаем сервис
+    const service = await server.getPrimaryService('0000fff0-0000-1000-8000-00805f9b34fb');
+
+    // Получаем характеристику для отправки команд
+    const characteristic = await service.getCharacteristic('0000fff1-0000-1000-8000-00805f9b34fb');
+
+    // Функция для отправки OBD-команды и получения ответа
+    async function sendOBDCommand(pid) {
+      // Формируем команду: "01" + PID + "\r"
+      const command = '01' + pid + '\r';
+      const encoder = new TextEncoder();
+      const data = encoder.encode(command);
+
+      await characteristic.writeValue(data);
+
+      // Ждём немного, чтобы адаптер ответил
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const response = await characteristic.readValue();
+      const decoder = new TextDecoder();
+      const raw = decoder.decode(response);
+
+      return raw;
+    }
+
+    // Пример: запрашиваем скорость (PID 0D)
+    const speedResponse = await sendOBDCommand('0D');
+    console.log('🚗 Ответ скорости (сырой):', speedResponse);
+
+    // Парсим ответ (упрощённо, для демонстрации)
+    // В реальности нужно разбирать HEX-строку по протоколу OBD-II
+    const speedMatch = speedResponse.match(/41 0D ([0-9A-F]{2})/i);
+    if (speedMatch) {
+      const speed = parseInt(speedMatch[1], 16);
+      console.log(`📊 Скорость: ${speed} км/ч`);
+
+      // Сохраняем в хранилище (функция из storage.js)
+      if (typeof updateTelemetry === 'function') {
+        updateTelemetry('speed', speed);
+      }
+
+      alert(`Текущая скорость: ${speed} км/ч`);
+    } else {
+      alert('Не удалось расшифровать ответ от OBD. Проверьте подключение адаптера.');
+    }
+
+  } catch (error) {
+    console.error('❌ Ошибка при подключении к OBD:', error);
+    alert('Не удалось подключиться к OBD-адаптеру. Убедитесь, что он включён и не занят другим приложением.');
+  }
+}
+
+// Эмуляция OBD для теста на iPhone (где Web Bluetooth ограничен)
+function emulateOBDData() {
+  console.log('🎮 Эмуляция OBD данных (для теста)');
+
+  // Генерируем случайные значения в разумных пределах
+  const speed = Math.floor(Math.random() * 60) + 20;      // 20-80 км/ч
+  const rpm = Math.floor(Math.random() * 2000) + 800;    // 800-2800 об/мин
+  const temp = Math.floor(Math.random() * 10) + 85;      // 85-95 °C
+
+  // Сохраняем в хранилище
+  if (typeof updateTelemetry === 'function') {
+    updateTelemetry('speed', speed);
+    updateTelemetry('rpm', rpm);
+    updateTelemetry('temperature', temp);
+  }
+
+  alert(`Эмуляция OBD:\nСкорость: ${speed} км/ч\nОбороты: ${rpm} об/мин\nТемпература: ${temp}°C`);
+
+  // Обновляем интерфейс (если есть функция)
+  if (typeof refreshDashboard === 'function') {
+    refreshDashboard();
+  }
+}
+
+// Автоматически запускаем эмуляцию при загрузке (чтобы на iPhone сразу было видно)
+document.addEventListener('DOMContentLoaded', () => {
+  // Если не поддерживается Bluetooth или мы на iOS, используем эмуляцию
+  if (!isBluetoothSupported() || /iPhone|iPad|iPod/.test(navigator.userAgent)) {
+    console.log('📱 iOS или нет Web Bluetooth — используем эмуляцию');
+    // Дадим небольшую задержку, чтобы хранилище точно загрузилось
+    setTimeout(emulateOBDData, 1000);
+  }
+});
+
+// Делаем функции доступными глобально (чтобы можно было вызвать из консоли или кнопок)
+window.connectToOBD = connectToOBD;
+window.emulateOBDData = emulateOBDData;

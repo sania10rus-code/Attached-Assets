@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ОНИКС · Эмулятор поездки</title>
+  <!-- Font Awesome для иконок -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+    body {
+      background: #0b0e14;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 12px;
+    }
+    .emulator {
+      max-width: 420px;
+      width: 100%;
+      background: #0f131a;
+      border-radius: 32px;
+      padding: 20px 16px;
+      color: #fff;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      border: 1px solid #2a3643;
+    }
+    h2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 22px;
+      margin-bottom: 16px;
+      color: #c6deff;
+    }
+    .car-badge {
+      background: #1e2733;
+      padding: 6px 14px;
+      border-radius: 40px;
+      font-size: 14px;
+      color: #b0c4de;
+    }
+    .speed-panel {
+      background: #111b24;
+      border-radius: 28px;
+      padding: 24px 16px;
+      margin-bottom: 18px;
+      border: 1px solid #2e4a6a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .speed-value {
+      font-size: 72px;
+      font-weight: 800;
+      line-height: 1;
+      color: #6eb5ff;
+      text-shadow: 0 0 20px #1e4f8a;
+    }
+    .speed-unit {
+      font-size: 20px;
+      color: #7f99bb;
+      margin-left: 4px;
+    }
+    .odometer-row {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      margin-top: 18px;
+      gap: 12px;
+    }
+    .odo-item {
+      text-align: center;
+    }
+    .odo-label {
+      font-size: 12px;
+      color: #8a9db0;
+    }
+    .odo-number {
+      font-size: 22px;
+      font-weight: 700;
+      color: #e0edf5;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .btn {
+      flex: 1;
+      background: #1e2a3a;
+      border: 1px solid #2f4868;
+      color: #d3e2ff;
+      padding: 16px 8px;
+      border-radius: 60px;
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn-primary {
+      background: #1e4f8a;
+      border-color: #3f7bc2;
+      color: white;
+    }
+    .btn:active {
+      opacity: 0.7;
+    }
+    .notifications {
+      background: #0c131c;
+      border-radius: 20px;
+      padding: 14px;
+      margin-bottom: 18px;
+      border-left: 5px solid #f4b740;
+    }
+    .notif-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #f4b740;
+    }
+    .notif-item {
+      background: #15232e;
+      border-radius: 16px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .notif-text {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .notif-actions button {
+      background: #1e4f8a;
+      border: none;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-left: 6px;
+      cursor: pointer;
+    }
+    .catalog-section {
+      background: #0c131c;
+      border-radius: 20px;
+      padding: 14px;
+    }
+    .catalog-title {
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #aad0ff;
+    }
+    .part-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #253545;
+    }
+    .part-name {
+      color: #cbdaea;
+    }
+    .part-price {
+      font-weight: 600;
+      color: #b9d6ff;
+    }
+    .add-btn {
+      background: #1e3a5f;
+      border: none;
+      color: white;
+      padding: 6px 16px;
+      border-radius: 40px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .footer-note {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #5e7a99;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<div class="emulator">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2><i class="fas fa-car-side" style="color: #4d9fff;"></i> ОНИКС · Драйв</h2>
+    <span class="car-badge" id="carModelDisplay">Skoda Octavia A5</span>
+  </div>
+
+  <!-- Панель скорости и пробега -->
+  <div class="speed-panel">
+    <div><span class="speed-value" id="currentSpeed">0</span><span class="speed-unit">км/ч</span></div>
+    <div class="odometer-row">
+      <div class="odo-item">
+        <div class="odo-label">За сегодня</div>
+        <div class="odo-number" id="todayDistance">0.0 <span style="font-size:14px;">км</span></div>
+      </div>
+      <div class="odo-item">
+        <div class="odo-label">Общий пробег</div>
+        <div class="odo-number" id="totalOdometer">102345 <span style="font-size:14px;">км</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Кнопки управления эмуляцией -->
+  <div class="controls">
+    <button class="btn" id="startBtn"><i class="fas fa-play"></i> Старт</button>
+    <button class="btn" id="stopBtn" disabled><i class="fas fa-stop"></i> Стоп</button>
+    <button class="btn btn-primary" id="resetDayBtn"><i class="fas fa-undo-alt"></i> Сброс дня</button>
+  </div>
+
+  <!-- Уведомления и предложения -->
+  <div class="notifications">
+    <div class="notif-title"><i class="fas fa-bell"></i> Уведомления</div>
+    <div id="notificationList">
+      <!-- Динамические уведомления появятся здесь -->
+    </div>
+  </div>
+
+  <!-- Каталог запчастей (регламент) -->
+  <div class="catalog-section">
+    <div class="catalog-title"><i class="fas fa-tools"></i> Регламент и запчасти</div>
+    <div id="partsCatalog">
+      <!-- Список запчастей с кнопками "Заказать" -->
+    </div>
+  </div>
+  <div class="footer-note">
+    Данные сохраняются в памяти · ОНИКС 2025
+  </div>
+</div>
+
+<script>
+  // ---------- Подключаем хранилище (функции loadAppData / saveAppData / updateTelemetry) ----------
+  // Эти функции должны быть доступны из storage.js. Если нет, создадим fallback.
+  const STORAGE_KEY = 'onix_offline_data_v1';
+
+  function defaultData() {
+    return {
+      carModel: 'Skoda Octavia A5',
+      carYear: 2007,
+      telemetry: {
+        mileage: 102345,
+        temperature: 90,
+        rpm: 800,
+        speed: 0,
+        batteryVoltage: 12.4,
+        lastUpdate: null
+      },
+      history: [],
+      reminders: [
+        { id: 1, text: 'Замена масла', dueMileage: 105000, interval: 15000, urgency: 'medium' },
+        { id: 2, text: 'Замена тормозных колодок', dueMileage: 103000, interval: 20000, urgency: 'high' },
+        { id: 3, text: 'Замена свечей зажигания', dueMileage: 110000, interval: 60000, urgency: 'low' },
+        { id: 4, text: 'Проверка ремня ГРМ', dueMileage: 120000, interval: 60000, urgency: 'medium' }
+      ],
+      orders: [],
+      pendingSync: []
+    };
+  }
+
+  function loadAppData() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) return JSON.parse(stored);
+      const def = defaultData();
+      saveAppData(def);
+      return def;
+    } catch (e) {
+      return defaultData();
+    }
+  }
+
+  function saveAppData(data) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch(e) {}
+  }
+
+  function updateTelemetry(field, value) {
+    const data = loadAppData();
+    data.telemetry[field] = value;
+    data.telemetry.lastUpdate = new Date().toISOString();
+    saveAppData(data);
+  }
+
+  // ---------- Глобальные переменные эмулятора ----------
+  let isRunning = false;
+  let intervalId = null;
+  let todayDistance = 0.0;          // км за текущую "сессию"
+  let lastSpeed = 0;
+  let appData = loadAppData();
+
+  // DOM элементы
+  const speedEl = document.getElementById('currentSpeed');
+  const todayDistEl = document.getElementById('todayDistance');
+  const totalOdoEl = document.getElementById('totalOdometer');
+  const carModelSpan = document.getElementById('carModelDisplay');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const resetDayBtn = document.getElementById('resetDayBtn');
+  const notifList = document.getElementById('notificationList');
+  const partsCatalog = document.getElementById('partsCatalog');
+
+  // Инициализация отображения
+  function refreshUI() {
+    const data = loadAppData();
+    const t = data.telemetry;
+    carModelSpan.textContent = `${data.carModel} (${data.carYear})`;
+    totalOdoEl.innerHTML = `${t.mileage} <span style="font-size:14px;">км</span>`;
+    speedEl.textContent = t.speed;
+    todayDistEl.innerHTML = `${todayDistance.toFixed(1)} <span style="font-size:14px;">км</span>`;
+
+    // Генерация уведомлений на основе пробега и регламентов
+    generateNotifications(data);
+    // Каталог запчастей на основе регламента
+    renderPartsCatalog(data);
+  }
+
+  // Генерация уведомлений (замена масла, сервис, запчасти)
+  function generateNotifications(data) {
+    const t = data.telemetry;
+    const mileage = t.mileage;
+    const reminders = data.reminders || [];
+    let html = '';
+
+    // Проверяем каждое напоминание
+    reminders.forEach(rem => {
+      const due = rem.dueMileage;
+      const diff = due - mileage;
+      if (diff > 0 && diff <= 5000) {
+        let urgencyText = '';
+        let icon = '🔧';
+        if (diff <= 1000) {
+          urgencyText = 'СРОЧНО: ';
+          icon = '⚠️';
+        } else if (diff <= 2000) {
+          urgencyText = 'Скоро: ';
+          icon = '🔔';
+        } else {
+          urgencyText = 'Планово: ';
+        }
+        html += `<div class="notif-item">
+          <div class="notif-text"><i class="fas fa-oil-can"></i> ${icon} ${rem.text} через ${diff} км</div>
+          <div class="notif-actions">
+            <button onclick="alert('Запись в сервис: ${rem.text}')"><i class="fas fa-calendar-plus"></i> Записаться</button>
+          </div>
+        </div>`;
+      }
+    });
+
+    // Доп. уведомление: если проехали за день больше 50 км
+    if (todayDistance > 50) {
+      html += `<div class="notif-item">
+        <div class="notif-text"><i class="fas fa-road"></i> Вы проехали ${todayDistance.toFixed(1)} км сегодня. Проверьте давление в шинах.</div>
+        <div class="notif-actions"><button onclick="alert('Рекомендация: проверьте шины')">ОК</button></div>
+      </div>`;
+    }
+
+    // Если нет уведомлений
+    if (html === '') {
+      html = '<div style="padding: 12px; color: #8a9db0; text-align: center;">Пока нет активных уведомлений</div>';
+    }
+    notifList.innerHTML = html;
+  }
+
+  // Каталог запчастей (на основе регламента)
+  function renderPartsCatalog(data) {
+    const parts = [
+      { name: 'Масло моторное Castrol 5W-30', price: 5200, related: 'Замена масла' },
+      { name: 'Масляный фильтр MANN', price: 1300, related: 'Замена масла' },
+      { name: 'Воздушный фильтр Bosch', price: 1200, related: 'Воздушный фильтр' },
+      { name: 'Тормозные колодки TRW (перед)', price: 7200, related: 'Замена колодок' },
+      { name: 'Свечи NGK (4 шт.)', price: 4400, related: 'Свечи зажигания' },
+      { name: 'Ремень ГРМ комплект', price: 8900, related: 'Проверка ГРМ' }
+    ];
+    let html = '';
+    parts.forEach(p => {
+      html += `<div class="part-item">
+        <span class="part-name">${p.name}</span>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span class="part-price">${p.price} ₽</span>
+          <button class="add-btn" onclick="alert('Добавлено в заказ: ${p.name}')">Заказать</button>
+        </div>
+      </div>`;
+    });
+    partsCatalog.innerHTML = html;
+  }
+
+  // Эмуляция движения: обновление скорости, пробега
+  function drivingTick() {
+    if (!isRunning) return;
+
+    const data = loadAppData();
+    let speed = data.telemetry.speed;
+
+    // Реалистичное изменение скорости (случайное блуждание)
+    const change = Math.floor(Math.random() * 11) - 3; // -3..+7
+    speed = Math.max(0, Math.min(140, speed + change));
+
+    // Рассчитываем пройденное расстояние за ~1 сек (км)
+    const distanceIncrement = (speed / 3600); // км/сек
+    todayDistance += distanceIncrement;
+
+    // Обновляем общий пробег
+    const newTotalMileage = data.telemetry.mileage + distanceIncrement;
+
+    // Сохраняем
+    data.telemetry.speed = speed;
+    data.telemetry.mileage = parseFloat(newTotalMileage.toFixed(1));
+    data.telemetry.lastUpdate = new Date().toISOString();
+    saveAppData(data);
+
+    // Обновляем UI
+    refreshUI();
+  }
+
+  function startDriving() {
+    if (isRunning) return;
+    isRunning = true;
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    intervalId = setInterval(drivingTick, 1000); // обновление раз в секунду
+  }
+
+  function stopDriving() {
+    if (!isRunning) return;
+    isRunning = false;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    if (intervalId) clearInterval(intervalId);
+
+    // Сохраняем финальные данные
+    const data = loadAppData();
+    data.telemetry.speed = 0;
+    saveAppData(data);
+    refreshUI();
+  }
+
+  function resetToday() {
+    todayDistance = 0.0;
+    refreshUI();
+  }
+
+  // Обработчики кнопок
+  startBtn.addEventListener('click', startDriving);
+  stopBtn.addEventListener('click', stopDriving);
+  resetDayBtn.addEventListener('click', resetToday);
+
+  // Инициализация при загрузке
+  window.addEventListener('DOMContentLoaded', () => {
+    // Загружаем сохранённый дневной пробег? Нет, начинаем с нуля.
+    const data = loadAppData();
+    // Если есть сохранённая скорость, но она была >0 при закрытии, сбрасываем
+    data.telemetry.speed = 0;
+    saveAppData(data);
+    refreshUI();
+  });
+
+  // Периодически (каждые 30 сек) синхронизируем напоминания
+  setInterval(() => {
+    if (!isRunning) {
+      // Даже когда стоим, можно пересчитать уведомления
+      refreshUI();
+    }
+  }, 30000);
+</script>
+</body>
+</html>

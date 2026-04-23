@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronRight, Settings2, Activity, Fuel, Thermometer, Gauge, LineChart, Droplet, CalendarCheck } from "lucide-react";
 import { Link } from "wouter";
@@ -10,27 +10,24 @@ import {
   SheetDescription,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { loadAppData, formatMileage, formatRub, formatDateRu, type AppData } from "@/lib/storage";
+import { formatMileage, formatRub, formatDateRu } from "@/lib/storage";
+import { useAppData } from "@/hooks/useAppData";
+import OBDEmulator from "@/components/OBDEmulator";
 
 export default function Home() {
-  const [data, setData] = useState<AppData | null>(null);
+  const data = useAppData();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [oilOpen, setOilOpen] = useState(false);
 
-  useEffect(() => {
-    setData(loadAppData());
-  }, []);
-
-  if (!data) return null;
-
   const { telemetry, carModel, carYear, orders, reminders } = data;
+  const displayMileage = Math.floor(telemetry.mileage);
   const oilReminder = reminders.find((r) => r.text.toLowerCase().includes("масл"));
-  const kmToOil = oilReminder?.dueMileage ? Math.max(0, oilReminder.dueMileage - telemetry.mileage) : 5000;
+  const kmToOil = oilReminder?.dueMileage ? Math.max(0, oilReminder.dueMileage - displayMileage) : 5000;
 
   const lastOrder = orders[0];
 
   const statCards = [
-    { id: "mileage", label: "Пробег", value: formatMileage(telemetry.mileage), unit: "км", icon: Settings2 },
+    { id: "mileage", label: "Пробег", value: formatMileage(displayMileage), unit: "км", icon: Settings2 },
     { id: "errors", label: "Ошибки", value: String(telemetry.errors), unit: "", icon: Activity, success: telemetry.errors === 0 },
     { id: "fuel", label: "Заправка", value: String(telemetry.fuelDays), unit: "дней", icon: Fuel },
     { id: "temp", label: "Температура", value: String(telemetry.temperature), unit: "°C", icon: Thermometer },
@@ -100,6 +97,8 @@ export default function Home() {
           <span>Подробнее</span>
           <ChevronRight size={16} className="text-muted-foreground" />
         </button>
+
+        <OBDEmulator />
 
         {/* Reminders Banner */}
         <motion.div

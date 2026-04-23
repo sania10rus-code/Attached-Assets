@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { MapPin, Wrench, AlertOctagon, Disc3, AlertTriangle, Key, Droplet } from "lucide-react";
-import { loadAppData, formatMileage, formatDateRu, type HistoryEvent, type HistoryIcon } from "@/lib/storage";
+import { formatMileage, formatDateRu, type HistoryIcon } from "@/lib/storage";
+import { useAppData } from "@/hooks/useAppData";
 
 type Tone = "neutral" | "primary" | "warn" | "danger" | "ok";
 
@@ -31,13 +32,11 @@ const toneStyles: Record<Tone, { dot: string; iconWrap: string; icon: string; ch
 };
 
 export default function History() {
-  const [events, setEvents] = useState<HistoryEvent[]>([]);
-
-  useEffect(() => {
-    const data = loadAppData();
-    const sorted = [...data.history].sort((a, b) => b.date.localeCompare(a.date));
-    setEvents(sorted);
-  }, []);
+  const data = useAppData();
+  const events = useMemo(
+    () => [...data.history].sort((a, b) => b.date.localeCompare(a.date)),
+    [data.history],
+  );
 
   return (
     <motion.div
