@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Wrench, AlertOctagon, Disc3, AlertTriangle, Key, Droplet } from "lucide-react";
+import { MapPin, Wrench, AlertOctagon, Disc3, AlertTriangle, Key, Droplet, Route, Download } from "lucide-react";
 import { formatMileage, formatDateRu, type HistoryIcon } from "@/lib/storage";
 import { useAppData } from "@/hooks/useAppData";
 
@@ -13,6 +13,7 @@ const iconMap: Record<HistoryIcon, React.ComponentType<{ size?: number; classNam
   engine: AlertTriangle,
   key: Key,
   oil: Droplet,
+  trip: Route,
 };
 
 const toneByType = (type: string): Tone => {
@@ -20,6 +21,7 @@ const toneByType = (type: string): Tone => {
   if (type === "Ошибка") return "warn";
   if (type === "Покупка") return "ok";
   if (type === "ТО") return "primary";
+  if (type === "Поездка") return "ok";
   return "neutral";
 };
 
@@ -38,6 +40,31 @@ export default function History() {
     [data.history],
   );
 
+  const handleExport = () => {
+    const lines: string[] = [];
+    lines.push(`ОНИКС — История автомобиля`);
+    lines.push(`${data.carModel} (${data.carYear})`);
+    lines.push(`Текущий пробег: ${formatMileage(Math.floor(data.telemetry.mileage))} км`);
+    lines.push(`Сформировано: ${new Date().toLocaleString("ru-RU")}`);
+    lines.push("");
+    lines.push("=".repeat(50));
+    lines.push("");
+    events.forEach((e) => {
+      lines.push(`[${formatDateRu(e.date)}] ${e.type} — ${e.desc}`);
+      lines.push(`  Пробег: ${formatMileage(e.mileage)} км${e.place ? ` · ${e.place}` : ""}`);
+      lines.push("");
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `onix-history-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -45,8 +72,19 @@ export default function History() {
       transition={{ duration: 0.3 }}
       className="p-6 pt-12 min-h-full"
     >
-      <h1 className="text-2xl font-bold mb-1">История</h1>
-      <p className="text-xs text-muted-foreground uppercase tracking-widest mb-6">События автомобиля</p>
+      <div className="flex items-start justify-between mb-6 gap-3">
+        <div>
+          <h1 className="text-2xl font-bold mb-1">История</h1>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">События автомобиля</p>
+        </div>
+        <button
+          onClick={handleExport}
+          className="glass-card border-primary/30 text-primary rounded-full px-3 py-2 text-xs font-semibold flex items-center gap-1.5 active:scale-[.98] transition-transform shrink-0"
+        >
+          <Download size={14} />
+          Экспорт
+        </button>
+      </div>
 
       <div className="relative border-l border-white/10 ml-3 space-y-6 pb-4">
         {events.map((item, i) => {

@@ -10,6 +10,7 @@ import Home from "@/pages/Home";
 import History from "@/pages/History";
 import Reminders from "@/pages/Reminders";
 import Orders from "@/pages/Orders";
+import Parts from "@/pages/Parts";
 import More from "@/pages/More";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/history" component={History} />
       <Route path="/reminders" component={Reminders} />
       <Route path="/orders" component={Orders} />
+      <Route path="/parts" component={Parts} />
       <Route path="/more" component={More} />
       <Route component={NotFound} />
     </Switch>

@@ -17,7 +17,8 @@ export type HistoryIcon =
   | "brake"
   | "engine"
   | "key"
-  | "oil";
+  | "oil"
+  | "trip";
 
 export type HistoryEvent = {
   type: string;
@@ -170,6 +171,20 @@ export function updateTelemetry(patch: Partial<Telemetry>): AppData {
 export function resetAppData(): AppData {
   saveAppData(defaultData);
   return defaultData;
+}
+
+export function addHistoryEvent(ev: HistoryEvent): AppData {
+  const current = loadAppData();
+  const next: AppData = { ...current, history: [ev, ...current.history] };
+  saveAppData(next);
+  return next;
+}
+
+export function addOrder(order: Order): AppData {
+  const current = loadAppData();
+  const next: AppData = { ...current, orders: [order, ...current.orders] };
+  saveAppData(next);
+  return next;
 }
 
 export function formatMileage(km: number): string {

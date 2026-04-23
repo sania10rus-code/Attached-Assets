@@ -1,12 +1,13 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { Gauge, History, Bell, FileText, Settings } from "lucide-react";
+import { Gauge, History, Bell, FileText, Settings, Wrench } from "lucide-react";
 import { motion } from "framer-motion";
 
 const tabs = [
   { path: "/", label: "Главная", icon: Gauge },
   { path: "/history", label: "История", icon: History },
   { path: "/reminders", label: "Напом.", icon: Bell },
+  { path: "/parts", label: "Запчасти", icon: Wrench },
   { path: "/orders", label: "Заказы", icon: FileText },
   { path: "/more", label: "Ещё", icon: Settings },
 ];

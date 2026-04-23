@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Square, Activity, Gauge, Thermometer, Bluetooth } from "lucide-react";
-import { loadAppData, updateTelemetry, formatMileage } from "@/lib/storage";
+import { loadAppData, updateTelemetry, formatMileage, addHistoryEvent } from "@/lib/storage";
 import { useAppData } from "@/hooks/useAppData";
+import SchedulingModal from "@/components/SchedulingModal";
 
 const TICK_MS = 1000;
 
-type Notice = { id: number; text: string };
+type Notice = { id: number; text: string; reminderText?: string };
 
 function pickNextSpeed(prev: number): number {
   const drift = Math.round((Math.random() - 0.45) * 12);
@@ -29,16 +30,22 @@ export default function OBDEmulator() {
   const data = useAppData();
   const [running, setRunning] = useState(false);
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [scheduleFor, setScheduleFor] = useState<string | null>(null);
   const timerRef = useRef<number | null>(null);
   const noticeId = useRef(1);
   const announced = useRef<Set<number>>(new Set());
+  const tripRef = useRef<{ startedAt: number; startMileage: number; samples: number[] } | null>(null);
 
-  const pushNotice = (text: string) => {
+  const pushNotice = (text: string, reminderText?: string) => {
     const id = noticeId.current++;
-    setNotices((n) => [...n, { id, text }]);
+    setNotices((n) => [...n, { id, text, reminderText }]);
     window.setTimeout(() => {
       setNotices((n) => n.filter((x) => x.id !== id));
-    }, 4500);
+    }, 5500);
+  };
+
+  const dismissNotice = (id: number) => {
+    setNotices((n) => n.filter((x) => x.id !== id));
   };
 
   const stop = () => {
@@ -48,12 +55,44 @@ export default function OBDEmulator() {
     }
     setRunning(false);
     updateTelemetry({ speed: 0, rpm: 0 });
+
+    const trip = tripRef.current;
+    tripRef.current = null;
+    if (trip) {
+      const cur = loadAppData();
+      const endMileage = Math.floor(cur.telemetry.mileage);
+      const distance = Math.max(0, endMileage - trip.startMileage);
+      const moving = trip.samples.filter((s) => s > 0);
+      const avgSpeed = moving.length
+        ? Math.round(moving.reduce((a, b) => a + b, 0) / moving.length)
+        : 0;
+      if (distance > 0) {
+        const dateIso = new Date().toISOString().slice(0, 10);
+        addHistoryEvent({
+          type: "Поездка",
+          desc: `Поездка ${distance} км · средняя ${avgSpeed} км/ч`,
+          place: "OBD-эмуляция",
+          mileage: endMileage,
+          date: dateIso,
+          icon: "trip",
+        });
+        pushNotice(`Поездка сохранена: ${distance} км`);
+      } else {
+        pushNotice("Эмуляция остановлена");
+      }
+    }
   };
 
   const start = () => {
     if (timerRef.current != null) return;
     setRunning(true);
     pushNotice("OBD-эмуляция запущена");
+    const cur = loadAppData();
+    tripRef.current = {
+      startedAt: Date.now(),
+      startMileage: Math.floor(cur.telemetry.mileage),
+      samples: [],
+    };
 
     timerRef.current = window.setInterval(() => {
       const cur = loadAppData();
@@ -73,13 +112,19 @@ export default function OBDEmulator() {
         mileage,
       });
 
+      if (tripRef.current) tripRef.current.samples.push(speed);
+
       const flooredMileage = Math.floor(mileage);
       next.reminders.forEach((r) => {
         if (r.dueMileage == null) return;
         const remaining = r.dueMileage - flooredMileage;
-        if (remaining <= 0 && !announced.current.has(r.id)) {
+        if (remaining <= 1000 && remaining > 0 && !announced.current.has(r.id)) {
           announced.current.add(r.id);
-          pushNotice(`Срок: ${r.text}`);
+          pushNotice(`Скоро ТО: ${r.text} (через ${remaining} км)`, r.text);
+        }
+        if (remaining <= 0 && !announced.current.has(-r.id)) {
+          announced.current.add(-r.id);
+          pushNotice(`Срок: ${r.text}`, r.text);
         }
       });
     }, TICK_MS);
@@ -102,12 +147,19 @@ export default function OBDEmulator() {
           <h2 className="text-xs font-bold uppercase tracking-widest">OBD-эмуляция</h2>
         </div>
         <span
-          className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+          className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border flex items-center gap-1.5 ${
             running
               ? "bg-primary/15 text-primary border-primary/30"
               : "bg-white/5 text-muted-foreground border-white/10"
           }`}
         >
+          {running && (
+            <motion.span
+              className="w-1.5 h-1.5 rounded-full bg-primary"
+              animate={{ opacity: [1, 0.25, 1], scale: [1, 1.4, 1] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+            />
+          )}
           {running ? "В эфире" : "Остановлено"}
         </span>
       </div>
@@ -152,13 +204,30 @@ export default function OBDEmulator() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.25 }}
-              className="glass-card border-primary/30 rounded-full px-4 py-2 text-xs font-medium shadow-lg max-w-sm"
+              className="glass-card border-primary/30 rounded-2xl px-4 py-2 text-xs font-medium shadow-lg max-w-sm pointer-events-auto flex items-center gap-3"
             >
-              {n.text}
+              <span className="flex-1">{n.text}</span>
+              {n.reminderText && (
+                <button
+                  onClick={() => {
+                    setScheduleFor(n.reminderText!);
+                    dismissNotice(n.id);
+                  }}
+                  className="bg-primary text-primary-foreground rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-wider shrink-0"
+                >
+                  Записаться
+                </button>
+              )}
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
+
+      <SchedulingModal
+        open={!!scheduleFor}
+        onOpenChange={(v) => !v && setScheduleFor(null)}
+        workName={scheduleFor || ""}
+      />
     </div>
   );
 }

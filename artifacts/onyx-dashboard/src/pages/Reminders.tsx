@@ -1,8 +1,9 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Droplet, Disc3, Zap, Wrench, Filter, AlertTriangle } from "lucide-react";
+import { Droplet, Disc3, Zap, Wrench, Filter, AlertTriangle, CalendarCheck } from "lucide-react";
 import { formatMileage, formatDateRu, type Reminder, type Urgency } from "@/lib/storage";
 import { useAppData } from "@/hooks/useAppData";
+import SchedulingModal from "@/components/SchedulingModal";
 
 const urgencyMeta: Record<Urgency, { label: string; chip: string; bar: string; iconWrap: string; icon: string; cardBorder: string; due: string }> = {
   high: {
@@ -78,12 +79,22 @@ function progressFor(r: Reminder, mileage: number): number {
 
 export default function Reminders() {
   const data = useAppData();
+  const [scheduleFor, setScheduleFor] = useState<string | null>(null);
   const reminders = useMemo<Reminder[]>(() => {
     const order: Record<Urgency, number> = { high: 0, medium: 1, low: 2 };
     return [...data.reminders].sort((a, b) => order[a.urgency] - order[b.urgency]);
   }, [data.reminders]);
   const telemetry = data.telemetry;
   const currentMileage = Math.floor(telemetry.mileage);
+
+  const isUrgent = (r: Reminder): boolean => {
+    if (r.dueMileage != null) return r.dueMileage - currentMileage <= 1000;
+    if (r.dueDate) {
+      const days = (new Date(r.dueDate).getTime() - Date.now()) / (24 * 3600 * 1000);
+      return days <= 60;
+    }
+    return false;
+  };
 
   return (
     <motion.div
@@ -141,12 +152,28 @@ export default function Reminders() {
                       />
                     </div>
                   </div>
+
+                  {isUrgent(r) && (
+                    <button
+                      onClick={() => setScheduleFor(r.text)}
+                      className="mt-3 w-full bg-primary text-primary-foreground rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[.98] transition-transform"
+                    >
+                      <CalendarCheck size={14} />
+                      Записаться
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
           );
         })}
       </div>
+
+      <SchedulingModal
+        open={!!scheduleFor}
+        onOpenChange={(v) => !v && setScheduleFor(null)}
+        workName={scheduleFor || ""}
+      />
     </motion.div>
   );
 }
