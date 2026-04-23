@@ -5,17 +5,7 @@ import { Link } from "wouter";
 import { useAppData } from "@/hooks/useAppData";
 import { formatMileage, type Defect } from "@/lib/storage";
 import { findCarByVin, type CarHotspotKey, type CarProfile } from "@/lib/cars";
-import Car3D, { type HotspotStatus } from "@/components/Car3D";
-
-function detectWebGL(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const canvas = document.createElement("canvas");
-    return !!(window.WebGLRenderingContext && (canvas.getContext("webgl") || canvas.getContext("experimental-webgl")));
-  } catch {
-    return false;
-  }
-}
+import DiagnosticScheme, { type HotspotStatus } from "@/components/DiagnosticScheme";
 
 const SAPPHIRE = "#1a3a5c";
 const SAPPHIRE_GLOW = "#2a5a8a";
@@ -113,29 +103,24 @@ export default function Diagnostics() {
     >
       <h1 className="text-2xl font-bold mb-1">Диагностика</h1>
       <p className="text-xs text-muted-foreground uppercase tracking-widest mb-5">
-        {car.model} ({car.year}) · 3D-схема узлов
+        {car.model} ({car.year}) · схема узлов
       </p>
 
       <div
         className="rounded-2xl mb-4 border overflow-hidden relative"
-        style={{ backgroundColor: "#0b1424", borderColor: SAPPHIRE, height: 320 }}
-        data-testid="car-3d-canvas"
+        style={{ backgroundColor: "#0b1424", borderColor: SAPPHIRE, height: 360 }}
+        data-testid="diagnostic-scheme-canvas"
       >
-        {useMemo(() => detectWebGL(), [])
-          ? <Car3D car={car} statusByKey={statusByKey} onPick={setActiveKey} selectedKey={activeKey} />
-          : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
-              <CarIcon size={48} className="mb-3" style={{ color: SAPPHIRE_GLOW }} />
-              <p className="text-sm font-semibold mb-1">3D-схема недоступна</p>
-              <p className="text-xs text-muted-foreground">
-                В браузере отключён WebGL. Узлы доступны в списке ниже.
-              </p>
-            </div>
-          )}
+        <DiagnosticScheme
+          car={car}
+          statusByKey={statusByKey}
+          onPick={setActiveKey}
+          selectedKey={activeKey}
+        />
       </div>
 
       <p className="text-[10px] text-center text-muted-foreground/70 uppercase tracking-widest mb-4 font-mono">
-        Поверните пальцем · нажмите узел для деталей
+        Нажмите точку для деталей узла
       </p>
 
       <div className="grid grid-cols-3 gap-2 mb-5 text-center">

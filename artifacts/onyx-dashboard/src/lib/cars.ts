@@ -15,6 +15,17 @@ export type CarHotspot = {
   recommendation: string;
 };
 
+/**
+ * 2D scheme hotspot — coordinates are percentages of the image box (0–100).
+ * x: horizontal (left → right), y: vertical (top → bottom).
+ * The image is rendered top-down (front of the car at the top of the frame).
+ */
+export type CarSchemeHotspot = {
+  key: CarHotspotKey;
+  x: number;
+  y: number;
+};
+
 export type CarStyle = "hatchback" | "sedan" | "suv";
 
 export type CarProfile = {
@@ -31,6 +42,47 @@ export type CarProfile = {
   bodyAccent: string;
   style: CarStyle;
   hotspots: CarHotspot[];
+  schemeImage?: string;
+  schemeHotspots?: CarSchemeHotspot[];
+};
+
+/** Hotspot positions for the 2D scheme, tuned per body style. */
+const SCHEME_BY_STYLE: Record<CarStyle, CarSchemeHotspot[]> = {
+  hatchback: [
+    { key: "grille", x: 50, y: 10 },
+    { key: "engine", x: 50, y: 24 },
+    { key: "front-wheels", x: 22, y: 32 },
+    { key: "cabin", x: 50, y: 48 },
+    { key: "underbody", x: 50, y: 62 },
+    { key: "rear-wheels", x: 22, y: 78 },
+  ],
+  sedan: [
+    { key: "grille", x: 50, y: 8 },
+    { key: "engine", x: 50, y: 22 },
+    { key: "front-wheels", x: 20, y: 30 },
+    { key: "cabin", x: 50, y: 46 },
+    { key: "underbody", x: 50, y: 64 },
+    { key: "rear-wheels", x: 20, y: 80 },
+  ],
+  suv: [
+    { key: "grille", x: 50, y: 9 },
+    { key: "engine", x: 50, y: 23 },
+    { key: "front-wheels", x: 18, y: 30 },
+    { key: "cabin", x: 50, y: 50 },
+    { key: "underbody", x: 50, y: 66 },
+    { key: "rear-wheels", x: 18, y: 80 },
+  ],
+};
+
+/* Eagerly imported scheme images (Vite resolves these to bundled URLs). */
+import skodaImg from "@/assets/cars/skoda-octavia-a5.png";
+import audiImg from "@/assets/cars/audi-a6-c7.png";
+import bmwImg from "@/assets/cars/bmw-x5-e70.png";
+
+const SCHEME_IMAGE_BY_LOGIN: Record<string, string> = {
+  "0000": skodaImg,
+  "2222": audiImg,
+  "3333": bmwImg,
 };
 
 const COMMON_HOTSPOTS = (style: CarStyle): CarHotspot[] => {
@@ -135,6 +187,12 @@ export const CARS: CarProfile[] = [
     hotspots: COMMON_HOTSPOTS("suv"),
   },
 ];
+
+// Decorate each profile with its 2D scheme image + per-style hotspot map.
+CARS.forEach((c) => {
+  c.schemeImage = SCHEME_IMAGE_BY_LOGIN[c.login];
+  c.schemeHotspots = SCHEME_BY_STYLE[c.style];
+});
 
 export function findCarByLogin(login: string): CarProfile | undefined {
   return CARS.find((c) => c.login === login);

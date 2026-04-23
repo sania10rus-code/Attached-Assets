@@ -46,8 +46,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetRoute = () => {
     if (typeof window === "undefined") return;
-    const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "") || "/";
-    window.history.replaceState(null, "", base + "/");
+    let base = import.meta.env.BASE_URL || "/";
+    if (!base.startsWith("/")) base = "/" + base;
+    if (!base.endsWith("/")) base = base + "/";
+    try {
+      window.history.replaceState(null, "", base);
+    } catch {
+      // ignore — non-fatal
+    }
   };
 
   const ctx: Ctx = {

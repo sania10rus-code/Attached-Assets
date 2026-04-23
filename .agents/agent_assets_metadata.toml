@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "e80qdJOUYoKtLXHS436Ha"
@@ -12,3 +11,39 @@ id = "vHApcve5Uz6UH6YfC2_ut"
 uri = "file://artifacts/onyx-dashboard/public/skoda-octavia.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "EIx9MH4z8Kq9Wztr2YOfS"
+uri = "file://artifacts/onyx-dashboard/src/assets/cars/skoda-octavia-a5.png"
+type = "image"
+title = "skoda octavia top"
+
+[[generated]]
+id = "0IwSPSv9v8eN3mIQK3UXz"
+uri = "file://artifacts/onyx-dashboard/src/assets/cars/audi-a6-c7.png"
+type = "image"
+title = "audi a6 top"
+
+[[generated]]
+id = "V870UxnxEpKoiQpNfO0He"
+uri = "file://artifacts/onyx-dashboard/src/assets/cars/bmw-x5-e70.png"
+type = "image"
+title = "bmw x5 top"
+
+[[outputs]]
+id = "XTTWZ7m756CSSWWbA79wJ"
+uri = "file://artifacts/onyx-dashboard/src/assets/cars/skoda-octavia-a5.png"
+type = "image"
+title = "Skoda Octavia A5"
+
+[[outputs]]
+id = "t5oehftMmj17mNoL7Mee9"
+uri = "file://artifacts/onyx-dashboard/src/assets/cars/audi-a6-c7.png"
+type = "image"
+title = "Audi A6 C7"
+
+[[outputs]]
+id = "2HUaU204e8eSmVVvNXDaz"
+uri = "file://artifacts/onyx-dashboard/src/assets/cars/bmw-x5-e70.png"
+type = "image"
+title = "BMW X5 E70"

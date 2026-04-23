@@ -36,7 +36,7 @@ Russian-language mobile-first PWA. Three owner profiles + one mechanic, isolated
 - Storage API: `loadAppDataFor(login)`, `saveAppDataFor`, `loadAllOwnersData`, `subscribe`, `addAppointment`, `updateAppointmentFor(login,id,patch)`, `addOrderFor`, `markOrderPaidFor`, `addHistoryEventFor`, `addDefectFor`.
 - IDs: appointments `appt-<base36ts>-<rand>`; orders `<vin4>-<base36ts>-<rand>` (globally unique across owners).
 - Mechanic dashboard aggregates across all owners; uses composite `${ownerLogin}:${orderId}` key to avoid collisions.
-- 3D diagnostics: `src/components/Car3D.tsx` (R3F, drei OrbitControls), WebGL fallback in `pages/Diagnostics.tsx`.
+- 2D diagnostic scheme: `src/components/DiagnosticScheme.tsx` renders a top-down PNG of the car with absolutely-positioned percent-based hotspot buttons. Per-style hotspot maps live in `lib/cars.ts` (`SCHEME_BY_STYLE`); each car profile is decorated with a bundled `schemeImage` (Skoda/Audi/BMW PNGs in `src/assets/cars/`) and `schemeHotspots`. Hotspots are anchored to an aspect-locked (3:4) inner frame so they stay aligned regardless of letterboxing. SVG silhouette fallback if the image fails to load. Three.js / @react-three/* removed.
 - Defect logging: `DefectForm` (mechanic) writes via `addDefectFor` → owner gets reminder + history alert.
 
 ### Security & Privacy
