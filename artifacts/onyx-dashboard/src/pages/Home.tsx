@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronRight, Settings2, Activity, Fuel, Thermometer, Gauge, LineChart, Droplet, CalendarCheck, Route, AlertCircle, LogOut } from "lucide-react";
+import { ChevronRight, Settings2, Activity, Fuel, Thermometer, Gauge, LineChart, Droplet, CalendarCheck, Route, AlertCircle, LogOut, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -21,7 +21,10 @@ export default function Home() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [oilOpen, setOilOpen] = useState(false);
 
-  const { telemetry, carModel, carYear, orders, reminders, todayDistance } = data;
+  const { telemetry, carModel, carYear, orders, reminders, todayDistance, history } = data;
+  const hasUnackDiscrepancy = history.some(
+    (h) => h.discrepancy && !h.discrepancy.acknowledged,
+  );
   const displayMileage = Math.floor(telemetry.mileage);
   const oilReminder = reminders.find((r) => r.text.toLowerCase().includes("масл"));
   const kmToOil = oilReminder?.dueMileage ? Math.max(0, oilReminder.dueMileage - displayMileage) : 5000;
@@ -65,6 +68,22 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {hasUnackDiscrepancy && (
+          <Link href="/history">
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-3 bg-amber-400/10 border border-amber-400/40 rounded-2xl px-4 py-3 flex items-start gap-2 cursor-pointer"
+              data-testid="banner-discrepancy"
+            >
+              <AlertTriangle size={16} className="text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-400 font-medium leading-snug">
+                Обнаружены расхождения в истории пробега. Проверьте раздел История.
+              </div>
+            </motion.div>
+          </Link>
+        )}
 
         {unpaid.length > 0 && (
           <Link href="/orders">

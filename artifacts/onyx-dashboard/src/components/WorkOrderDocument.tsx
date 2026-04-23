@@ -8,11 +8,13 @@ import {
   Stamp,
   Package,
   PackageOpen,
+  AlertTriangle,
 } from "lucide-react";
 import {
   addOrder,
   addHistoryEvent,
   formatRub,
+  formatMileage,
   loadAppData,
   type Appointment,
   type OrderItem,
@@ -65,6 +67,7 @@ export default function WorkOrderDocument({
   const [parts, setParts] = useState<LinePart[]>([]);
   const [comment, setComment] = useState("");
   const [showCatalog, setShowCatalog] = useState(false);
+  const [warnDiff, setWarnDiff] = useState<number | null>(null);
 
   const orderId = useMemo(() => String(Math.floor(Math.random() * 90000) + 10000), [appointment?.id]);
 
@@ -109,7 +112,22 @@ export default function WorkOrderDocument({
     });
   };
 
-  const send = () => {
+  const trySend = () => {
+    if (works.length + parts.length === 0) return;
+    const fresh = loadAppData();
+    const actual = Math.floor(fresh.telemetry.mileage);
+    const diff = Math.abs(mileage - actual);
+    if (diff > 500 && diff <= 1000) {
+      setWarnDiff(diff);
+      return;
+    }
+    finalizeSend();
+  };
+
+  const finalizeSend = () => {
+    const fresh = loadAppData();
+    const actual = Math.floor(fresh.telemetry.mileage);
+    const diff = Math.abs(mileage - actual);
     const items: OrderItem[] = [
       ...works.map((w) => ({ name: `Работа: ${w.name}`, qty: 1, price: w.price })),
       ...parts.map((p) => ({
@@ -118,7 +136,6 @@ export default function WorkOrderDocument({
         price: p.price * p.qty,
       })),
     ];
-    if (items.length === 0) return;
     addOrder({
       id: orderId,
       date: new Date().toISOString().slice(0, 10),
@@ -139,8 +156,26 @@ export default function WorkOrderDocument({
       date: new Date().toISOString().slice(0, 10),
       icon: "check",
     });
+    if (diff > 1000) {
+      addHistoryEvent({
+        type: "Расхождение",
+        desc: `Расхождение пробега ${formatMileage(diff)} км`,
+        place: sto.name,
+        mileage,
+        date: new Date().toISOString().slice(0, 10),
+        icon: "engine",
+        discrepancy: {
+          reportedMileage: mileage,
+          actualMileage: actual,
+          diff,
+          relatedOrderId: orderId,
+          acknowledged: false,
+        },
+      });
+    }
     onSent(orderId);
     reset();
+    setWarnDiff(null);
     onClose();
   };
 
@@ -202,7 +237,7 @@ export default function WorkOrderDocument({
 
             <footer className="px-4 py-3 border-t border-white/10 bg-background shrink-0">
               <button
-                onClick={send}
+                onClick={trySend}
                 disabled={works.length + parts.length === 0}
                 className="w-full bg-primary text-primary-foreground rounded-2xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform disabled:opacity-40"
               >
@@ -217,6 +252,14 @@ export default function WorkOrderDocument({
               onAdd={(cp) => {
                 addCatalogPart(cp);
               }}
+            />
+
+            <DiscrepancyWarning
+              diff={warnDiff}
+              reported={mileage}
+              actual={Math.floor(loadAppData().telemetry.mileage)}
+              onCancel={() => setWarnDiff(null)}
+              onConfirm={() => finalizeSend()}
             />
           </motion.div>
         </motion.div>
@@ -628,6 +671,84 @@ function CatalogSheet({
                   </button>
                 </div>
               ))}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function DiscrepancyWarning({
+  diff,
+  reported,
+  actual,
+  onCancel,
+  onConfirm,
+}: {
+  diff: number | null;
+  reported: number;
+  actual: number;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      {diff != null && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 z-20 bg-black/80 flex items-end justify-center"
+          onClick={onCancel}
+        >
+          <motion.div
+            initial={{ y: 60 }}
+            animate={{ y: 0 }}
+            exit={{ y: 60 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full bg-background rounded-t-3xl border-t border-amber-400/30 p-6"
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-400/15 flex items-center justify-center shrink-0">
+                <AlertTriangle size={18} className="text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-amber-400 leading-snug">
+                  Внимание: расхождение пробега
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Указанный пробег расходится с данными автомобиля на{" "}
+                  <span className="text-amber-400 font-mono font-bold">
+                    {formatMileage(diff)} км
+                  </span>
+                  . Проверьте правильность ввода.
+                </p>
+              </div>
+            </div>
+            <div className="bg-black/30 border border-white/10 rounded-xl p-3 mb-4 text-[12px] font-mono space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Указано:</span>
+                <span className="font-bold">{formatMileage(reported)} км</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">По данным авто:</span>
+                <span className="font-bold">{formatMileage(actual)} км</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={onCancel}
+                className="glass-card rounded-2xl py-3.5 text-xs font-semibold"
+              >
+                Исправить
+              </button>
+              <button
+                onClick={onConfirm}
+                className="bg-amber-400 text-black rounded-2xl py-3.5 text-xs font-semibold"
+              >
+                Всё верно, отправить
+              </button>
             </div>
           </motion.div>
         </motion.div>

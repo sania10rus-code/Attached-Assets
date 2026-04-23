@@ -8,6 +8,7 @@ import MobileFrame from "@/components/layout/MobileFrame";
 
 import Splash from "@/pages/Splash";
 import Login from "@/pages/Login";
+import Onboarding from "@/pages/Onboarding";
 import MechanicDashboard from "@/pages/MechanicDashboard";
 
 import Home from "@/pages/Home";
@@ -36,7 +37,7 @@ function OwnerRouter() {
 }
 
 function Shell() {
-  const { user } = useAuth();
+  const { user, justLoggedIn, markOnboardingDone } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
 
   if (!splashDone) {
@@ -45,6 +46,10 @@ function Shell() {
 
   if (!user) {
     return <Login />;
+  }
+
+  if (justLoggedIn) {
+    return <Onboarding role={user.role} onDone={markOnboardingDone} />;
   }
 
   if (user.role === "mechanic") {

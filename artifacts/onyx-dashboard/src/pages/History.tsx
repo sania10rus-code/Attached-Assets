@@ -1,7 +1,30 @@
-import React, { useMemo } from "react";
-import { motion } from "framer-motion";
-import { MapPin, Wrench, AlertOctagon, Disc3, AlertTriangle, Key, Droplet, Route, Download } from "lucide-react";
-import { formatMileage, formatDateRu, type HistoryIcon } from "@/lib/storage";
+import React, { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  MapPin,
+  Wrench,
+  AlertOctagon,
+  Disc3,
+  AlertTriangle,
+  Key,
+  Droplet,
+  Route,
+  Download,
+  Pencil,
+  Lock,
+  X,
+  Check,
+  Info,
+} from "lucide-react";
+import {
+  formatMileage,
+  formatDateRu,
+  type HistoryIcon,
+  type HistoryEvent,
+  canEdit,
+  updateHistoryEvent,
+  acknowledgeDiscrepancy,
+} from "@/lib/storage";
 import { useAppData } from "@/hooks/useAppData";
 
 type Tone = "neutral" | "primary" | "warn" | "danger" | "ok";
@@ -19,7 +42,7 @@ const iconMap: Record<HistoryIcon, React.ComponentType<{ size?: number; classNam
 
 const toneByType = (type: string): Tone => {
   if (type === "ДТП") return "danger";
-  if (type === "Ошибка") return "warn";
+  if (type === "Ошибка" || type === "Расхождение") return "warn";
   if (type === "Покупка") return "ok";
   if (type === "ТО") return "primary";
   if (type === "Поездка") return "ok";
@@ -40,6 +63,9 @@ export default function History() {
     () => [...data.history].sort((a, b) => b.date.localeCompare(a.date)),
     [data.history],
   );
+
+  const [editing, setEditing] = useState<HistoryEvent | null>(null);
+  const [locked, setLocked] = useState<HistoryEvent | null>(null);
 
   const handleExport = () => {
     const lines: string[] = [];
@@ -92,12 +118,15 @@ export default function History() {
           const tone = toneByType(item.type);
           const t = toneStyles[tone];
           const Icon = iconMap[item.icon] ?? Wrench;
+          const editable = canEdit(item.createdAt);
+          const isDiscrepancy = !!item.discrepancy;
+          const needsAck = isDiscrepancy && !item.discrepancy?.acknowledged;
           return (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: i * 0.06 }}
-              key={`${item.date}-${i}`}
+              transition={{ duration: 0.3, delay: i * 0.04 }}
+              key={item.id}
               className="relative pl-6"
             >
               <div className={`absolute -left-[5px] top-2 w-2.5 h-2.5 rounded-full ${t.dot}`} />
@@ -106,15 +135,24 @@ export default function History() {
                 {formatDateRu(item.date)}
               </div>
 
-              <div className="glass-card rounded-2xl p-4 border-white/5">
+              <div
+                className={`glass-card rounded-2xl p-4 ${
+                  needsAck ? "border-amber-400/40 bg-amber-400/[0.04]" : "border-white/5"
+                }`}
+              >
                 <div className="flex items-start gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${t.iconWrap}`}>
                     <Icon size={18} className={t.icon} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className="font-semibold text-sm leading-tight">{item.desc}</h3>
-                      <span className={`text-[10px] font-mono font-medium uppercase tracking-wider ${t.chip} shrink-0`}>
+                      <h3 className="font-semibold text-sm leading-tight">
+                        {isDiscrepancy && <span className="mr-1">⚠️</span>}
+                        {item.desc}
+                      </h3>
+                      <span
+                        className={`text-[10px] font-mono font-medium uppercase tracking-wider ${t.chip} shrink-0`}
+                      >
                         {formatMileage(item.mileage)} км
                       </span>
                     </div>
@@ -123,10 +161,52 @@ export default function History() {
                         {item.place && <MapPin size={12} />}
                         <span>{item.place || "Бортовая диагностика"}</span>
                       </div>
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium">
-                        {item.type}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium">
+                          {item.type}
+                        </span>
+                        {editable ? (
+                          <button
+                            onClick={() => setEditing(item)}
+                            className="text-muted-foreground hover:text-primary"
+                            data-testid={`edit-${item.id}`}
+                            title="Редактировать (доступно 24ч)"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setLocked(item)}
+                            className="text-muted-foreground/60"
+                            data-testid={`lock-${item.id}`}
+                            title="Запись неизменяема"
+                          >
+                            <Lock size={13} />
+                          </button>
+                        )}
+                      </div>
                     </div>
+                    {isDiscrepancy && item.discrepancy && (
+                      <div className="mt-3 bg-amber-400/10 border border-amber-400/30 rounded-xl p-2.5 text-[11px] text-amber-400 space-y-1.5">
+                        <div className="font-mono leading-snug">
+                          Указано {formatMileage(item.discrepancy.reportedMileage)} км
+                          {" · "}
+                          по данным авто {formatMileage(item.discrepancy.actualMileage)} км
+                          {" · "}
+                          расхождение {formatMileage(item.discrepancy.diff)} км
+                        </div>
+                        {needsAck && (
+                          <button
+                            onClick={() => acknowledgeDiscrepancy(item.id)}
+                            data-testid={`ack-${item.id}`}
+                            className="w-full bg-amber-400/15 border border-amber-400/40 rounded-lg py-1.5 text-[11px] font-semibold flex items-center justify-center gap-1.5 mt-1"
+                          >
+                            <Check size={12} />
+                            Подтвердить ознакомление
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -134,6 +214,146 @@ export default function History() {
           );
         })}
       </div>
+
+      <EditEventSheet event={editing} onClose={() => setEditing(null)} />
+      <LockedSheet event={locked} onClose={() => setLocked(null)} />
     </motion.div>
+  );
+}
+
+function EditEventSheet({ event, onClose }: { event: HistoryEvent | null; onClose: () => void }) {
+  const [desc, setDesc] = useState("");
+  const [mileage, setMileage] = useState<string>("");
+
+  React.useEffect(() => {
+    if (event) {
+      setDesc(event.desc);
+      setMileage(String(event.mileage));
+    }
+  }, [event]);
+
+  return (
+    <AnimatePresence>
+      {event && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 z-[80] bg-black/70 flex items-end justify-center"
+        >
+          <motion.div
+            initial={{ y: 60 }}
+            animate={{ y: 0 }}
+            exit={{ y: 60 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-[430px] bg-background border-t border-white/10 rounded-t-3xl p-6"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-bold tracking-tight flex items-center gap-2">
+                  <Pencil size={16} className="text-primary" />
+                  Редактировать запись
+                </h3>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Доступно в течение 24ч с момента создания
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block">
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium block mb-1.5">
+                  Описание
+                </span>
+                <input
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-3 text-sm outline-none focus:border-primary/50"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium block mb-1.5">
+                  Пробег, км
+                </span>
+                <input
+                  type="number"
+                  value={mileage}
+                  onChange={(e) => setMileage(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-3 text-sm outline-none focus:border-primary/50 font-mono"
+                />
+              </label>
+            </div>
+
+            <button
+              onClick={() => {
+                updateHistoryEvent(event.id, {
+                  desc: desc.trim() || event.desc,
+                  mileage: parseInt(mileage) || event.mileage,
+                });
+                onClose();
+              }}
+              className="mt-5 w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+            >
+              <Check size={16} />
+              Сохранить
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function LockedSheet({ event, onClose }: { event: HistoryEvent | null; onClose: () => void }) {
+  return (
+    <AnimatePresence>
+      {event && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 z-[80] bg-black/70 flex items-end justify-center"
+        >
+          <motion.div
+            initial={{ y: 60 }}
+            animate={{ y: 0 }}
+            exit={{ y: 60 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-[430px] bg-background border-t border-white/10 rounded-t-3xl p-6"
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+                <Lock size={18} className="text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold tracking-tight">Запись неизменяема</h3>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Прошло более 24 часов с момента создания записи. История ОНИКС защищена от
+                  изменений — это гарантирует доверие к данным автомобиля.
+                </p>
+              </div>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-[12px] text-muted-foreground flex items-start gap-2">
+              <Info size={14} className="text-primary shrink-0 mt-0.5" />
+              <span>Обратитесь в поддержку ОНИКС для внесения изменений.</span>
+            </div>
+            <button
+              onClick={onClose}
+              className="mt-4 w-full glass-card rounded-2xl py-3.5 text-sm font-medium"
+            >
+              Понятно
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

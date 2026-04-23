@@ -22,14 +22,38 @@ export type HistoryIcon =
   | "trip"
   | "check";
 
+export type Discrepancy = {
+  reportedMileage: number;
+  actualMileage: number;
+  diff: number;
+  relatedOrderId?: string;
+  acknowledged: boolean;
+};
+
 export type HistoryEvent = {
+  id: string;
   type: string;
   desc: string;
   place: string;
   mileage: number;
   date: string;
   icon: HistoryIcon;
+  createdAt: string;
+  discrepancy?: Discrepancy;
 };
+
+export const HISTORY_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function canEdit(createdAt?: string): boolean {
+  if (!createdAt) return false;
+  const t = new Date(createdAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < HISTORY_EDIT_WINDOW_MS;
+}
+
+function genId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 export type Urgency = "high" | "medium" | "low";
 
@@ -57,6 +81,7 @@ export type Order = {
   paidAt?: string;
   createdBy?: "owner" | "mechanic";
   comment?: string;
+  createdAt?: string;
 };
 
 export type AppointmentStatus = "Ожидает" | "В работе" | "Готово" | "Отменено";
@@ -121,12 +146,12 @@ export const defaultData: AppData = {
   todayDate: todayIso(),
   todayDistance: 0,
   history: [
-    { type: "ТО", desc: "ТО у дилера", place: "Москва", mileage: 80000, date: "2025-01-15", icon: "wrench" },
-    { type: "ДТП", desc: "ДТП, передний бампер", place: "Москва", mileage: 75280, date: "2021-09-10", icon: "car-crash" },
-    { type: "Ремонт", desc: "Замена тормозных колодок", place: "Москва", mileage: 75280, date: "2024-11-20", icon: "brake" },
-    { type: "Ошибка", desc: "Ошибка P0141 (датчик кислорода)", place: "", mileage: 60000, date: "2020-01-02", icon: "engine" },
-    { type: "Покупка", desc: "Выезд из дилера", place: "Москва", mileage: 52560, date: "2018-05-10", icon: "key" },
-    { type: "ТО", desc: "Замена масла", place: "Москва", mileage: 40000, date: "2017-01-01", icon: "oil" },
+    { id: "h1", type: "ТО", desc: "ТО у дилера", place: "Москва", mileage: 80000, date: "2025-01-15", icon: "wrench", createdAt: "2025-01-15T10:00:00.000Z" },
+    { id: "h2", type: "ДТП", desc: "ДТП, передний бампер", place: "Москва", mileage: 75280, date: "2021-09-10", icon: "car-crash", createdAt: "2021-09-10T10:00:00.000Z" },
+    { id: "h3", type: "Ремонт", desc: "Замена тормозных колодок", place: "Москва", mileage: 75280, date: "2024-11-20", icon: "brake", createdAt: "2024-11-20T10:00:00.000Z" },
+    { id: "h4", type: "Ошибка", desc: "Ошибка P0141 (датчик кислорода)", place: "", mileage: 60000, date: "2020-01-02", icon: "engine", createdAt: "2020-01-02T10:00:00.000Z" },
+    { id: "h5", type: "Покупка", desc: "Выезд из дилера", place: "Москва", mileage: 52560, date: "2018-05-10", icon: "key", createdAt: "2018-05-10T10:00:00.000Z" },
+    { id: "h6", type: "ТО", desc: "Замена масла", place: "Москва", mileage: 40000, date: "2017-01-01", icon: "oil", createdAt: "2017-01-01T10:00:00.000Z" },
   ],
   reminders: [
     { id: 1, text: "Замена масла", dueMileage: 105000, interval: 15000, urgency: "medium" },
@@ -178,6 +203,12 @@ export function loadAppData(): AppData {
         merged.todayDate = todayIso();
         merged.todayDistance = 0;
       }
+      // Backfill ids / createdAt for legacy history items
+      merged.history = (merged.history || []).map((h, i) => ({
+        ...h,
+        id: h.id || `legacy-${i}-${h.date}`,
+        createdAt: h.createdAt || `${h.date}T10:00:00.000Z`,
+      }));
       return merged;
     }
     saveAppData(defaultData);
@@ -244,16 +275,53 @@ export function resetAppData(): AppData {
   return defaultData;
 }
 
-export function addHistoryEvent(ev: HistoryEvent): AppData {
+export function addHistoryEvent(
+  ev: Omit<HistoryEvent, "id" | "createdAt"> & { id?: string; createdAt?: string },
+): AppData {
   const current = loadAppData();
-  const next: AppData = { ...current, history: [ev, ...current.history] };
+  const full: HistoryEvent = {
+    ...ev,
+    id: ev.id || genId(),
+    createdAt: ev.createdAt || new Date().toISOString(),
+  };
+  const next: AppData = { ...current, history: [full, ...current.history] };
+  saveAppData(next);
+  return next;
+}
+
+export function updateHistoryEvent(id: string, patch: Partial<HistoryEvent>): AppData {
+  const current = loadAppData();
+  const target = current.history.find((h) => h.id === id);
+  if (!target || !canEdit(target.createdAt)) return current;
+  const safePatch = { ...patch };
+  delete (safePatch as Partial<HistoryEvent>).id;
+  delete (safePatch as Partial<HistoryEvent>).createdAt;
+  const next: AppData = {
+    ...current,
+    history: current.history.map((h) => (h.id === id ? { ...h, ...safePatch } : h)),
+  };
+  saveAppData(next);
+  return next;
+}
+
+export function acknowledgeDiscrepancy(id: string): AppData {
+  const current = loadAppData();
+  const next: AppData = {
+    ...current,
+    history: current.history.map((h) =>
+      h.id === id && h.discrepancy
+        ? { ...h, discrepancy: { ...h.discrepancy, acknowledged: true } }
+        : h,
+    ),
+  };
   saveAppData(next);
   return next;
 }
 
 export function addOrder(order: Order): AppData {
   const current = loadAppData();
-  const next: AppData = { ...current, orders: [order, ...current.orders] };
+  const full: Order = { ...order, createdAt: order.createdAt || new Date().toISOString() };
+  const next: AppData = { ...current, orders: [full, ...current.orders] };
   saveAppData(next);
   return next;
 }
