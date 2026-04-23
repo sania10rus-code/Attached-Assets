@@ -577,10 +577,10 @@ function PaperSection({
 function SigBlock({ role }: { role: string }) {
   return (
     <div className="text-center">
-      <div className="border-b border-black/40 h-10 italic text-black/50 text-sm flex items-end justify-center pb-1">
-        Подпись
+      <div className="text-[10px] uppercase tracking-widest text-black/60 mb-1">
+        Подпись {role}
       </div>
-      <div className="text-[10px] uppercase tracking-widest text-black/60 mt-1">{role}</div>
+      <div className="font-mono text-sm text-black/70 tracking-widest">___________</div>
     </div>
   );
 }

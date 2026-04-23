@@ -8,34 +8,51 @@ type Props = {
   onDone: () => void;
 };
 
+const SAPPHIRE = "#1a3a5c";
+const SAPPHIRE_GLOW = "#2a5a8a";
+
 export default function Onboarding({ role, onDone }: Props) {
   const [stage, setStage] = useState<Stage>("start");
-  const speed = useMotionValue(0);
-  const angle = useTransform(speed, [0, 100], [-135, 135]);
-  const speedRounded = useTransform(speed, (v) => Math.round(v));
+  const rpm = useMotionValue(0);
+  const angle = useTransform(rpm, [0, 8000], [-135, 135]);
+  const rpmRounded = useTransform(rpm, (v) => Math.round(v / 100) * 100);
 
+  // Animate RPM: rev to 3500 then idle oscillation
+  useEffect(() => {
+    if (stage !== "anim" && stage !== "text") return;
+    let cancelled = false;
+    const seq = async () => {
+      const c1 = animate(rpm, 3500, { duration: 1.2, ease: [0.22, 1, 0.36, 1] });
+      await c1;
+      if (cancelled) return;
+      // Idle oscillation around 800 rpm
+      const c2 = animate(rpm, 800, { duration: 0.8, ease: "easeOut" });
+      await c2;
+      if (cancelled) return;
+      while (!cancelled) {
+        const c3 = animate(rpm, 950, { duration: 1.4, ease: "easeInOut" });
+        await c3;
+        if (cancelled) return;
+        const c4 = animate(rpm, 750, { duration: 1.4, ease: "easeInOut" });
+        await c4;
+      }
+    };
+    seq();
+    return () => {
+      cancelled = true;
+    };
+  }, [stage, rpm]);
+
+  // Reveal text after 1.4s of revving
   useEffect(() => {
     if (stage !== "anim") return;
-    const controls = animate(speed, 100, {
-      duration: 1.5,
-      ease: [0.22, 1, 0.36, 1],
-    });
-    const t = setTimeout(() => setStage("text"), 1600);
-    return () => {
-      controls.stop();
-      clearTimeout(t);
-    };
-  }, [stage, speed]);
-
-  useEffect(() => {
-    if (stage !== "text") return;
-    const t = setTimeout(() => setStage("done"), 3500);
+    const t = setTimeout(() => setStage("text"), 1400);
     return () => clearTimeout(t);
   }, [stage]);
 
   useEffect(() => {
     if (stage !== "done") return;
-    const t = setTimeout(onDone, 600);
+    const t = setTimeout(onDone, 500);
     return () => clearTimeout(t);
   }, [stage, onDone]);
 
@@ -75,20 +92,22 @@ export default function Onboarding({ role, onDone }: Props) {
             <button
               onClick={() => setStage("anim")}
               data-testid="onboarding-start"
-              className="relative w-44 h-44 rounded-full bg-primary text-primary-foreground text-2xl font-bold tracking-widest uppercase active:scale-95 transition-transform"
+              className="relative w-44 h-44 rounded-full text-white text-2xl font-bold tracking-widest uppercase active:scale-95 transition-transform"
               style={{
-                boxShadow:
-                  "0 0 60px rgba(255,0,0,.45), 0 0 0 0 rgba(255,0,0,.35) inset",
+                backgroundColor: SAPPHIRE,
+                boxShadow: `0 0 60px ${SAPPHIRE_GLOW}aa, inset 0 0 0 1px ${SAPPHIRE_GLOW}`,
               }}
             >
               <motion.span
-                className="absolute inset-0 rounded-full border-2 border-primary"
-                animate={{ scale: [1, 1.25, 1.5], opacity: [0.6, 0.2, 0] }}
+                className="absolute inset-0 rounded-full"
+                style={{ border: `2px solid ${SAPPHIRE_GLOW}` }}
+                animate={{ scale: [1, 1.25, 1.5], opacity: [0.7, 0.25, 0] }}
                 transition={{ duration: 1.6, repeat: Infinity }}
               />
               <motion.span
-                className="absolute inset-0 rounded-full border-2 border-primary"
-                animate={{ scale: [1, 1.25, 1.5], opacity: [0.6, 0.2, 0] }}
+                className="absolute inset-0 rounded-full"
+                style={{ border: `2px solid ${SAPPHIRE_GLOW}` }}
+                animate={{ scale: [1, 1.25, 1.5], opacity: [0.7, 0.25, 0] }}
                 transition={{ duration: 1.6, repeat: Infinity, delay: 0.6 }}
               />
               <span className="relative">Начать</span>
@@ -107,7 +126,7 @@ export default function Onboarding({ role, onDone }: Props) {
             transition={{ duration: 0.3 }}
             className="flex flex-col items-center w-full max-w-sm"
           >
-            <Speedometer angle={angle} speedRounded={speedRounded} />
+            <Tachometer angle={angle} rpmRounded={rpmRounded} />
             <AnimatePresence>
               {stage === "text" && (
                 <motion.div
@@ -115,7 +134,7 @@ export default function Onboarding({ role, onDone }: Props) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
-                  className="mt-8 text-center space-y-3"
+                  className="mt-7 text-center space-y-3 w-full"
                 >
                   {lines.map((l, i) => (
                     <motion.p
@@ -125,15 +144,31 @@ export default function Onboarding({ role, onDone }: Props) {
                       transition={{ duration: 0.4, delay: 0.15 * i }}
                       className={
                         i === 0
-                          ? "text-xl font-bold tracking-tight text-glow"
+                          ? "text-xl font-bold tracking-tight"
                           : i === 1
-                            ? "text-xs uppercase tracking-widest text-primary font-mono"
+                            ? "text-xs uppercase tracking-widest font-mono"
                             : "text-sm text-muted-foreground leading-relaxed"
                       }
+                      style={i === 1 ? { color: SAPPHIRE_GLOW } : undefined}
                     >
                       {l}
                     </motion.p>
                   ))}
+
+                  <motion.button
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.15 * lines.length + 0.2 }}
+                    onClick={() => setStage("done")}
+                    data-testid="onboarding-continue"
+                    className="mt-6 w-full text-white rounded-2xl py-3.5 text-sm font-semibold uppercase tracking-widest active:scale-[.98] transition-transform"
+                    style={{
+                      backgroundColor: SAPPHIRE,
+                      boxShadow: `0 0 24px ${SAPPHIRE_GLOW}66, inset 0 0 0 1px ${SAPPHIRE_GLOW}`,
+                    }}
+                  >
+                    Продолжить
+                  </motion.button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -144,48 +179,69 @@ export default function Onboarding({ role, onDone }: Props) {
   );
 }
 
-function Speedometer({
+function Tachometer({
   angle,
-  speedRounded,
+  rpmRounded,
 }: {
   angle: ReturnType<typeof useTransform<number, number>>;
-  speedRounded: ReturnType<typeof useTransform<number, number>>;
+  rpmRounded: ReturnType<typeof useTransform<number, number>>;
 }) {
   return (
     <div className="relative w-56 h-56">
       <svg viewBox="0 0 200 200" className="w-full h-full">
         <defs>
-          <linearGradient id="arc-grad" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="#22c55e" />
-            <stop offset="60%" stopColor="#eab308" />
-            <stop offset="100%" stopColor="#ff0033" />
+          <linearGradient id="tach-arc" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor={SAPPHIRE_GLOW} />
+            <stop offset="60%" stopColor={SAPPHIRE_GLOW} />
+            <stop offset="80%" stopColor="#eab308" />
+            <stop offset="100%" stopColor="#ff3344" />
           </linearGradient>
+          <radialGradient id="tach-bg" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%" stopColor="#0e1828" />
+            <stop offset="100%" stopColor="#070b14" />
+          </radialGradient>
         </defs>
-        <circle cx="100" cy="100" r="92" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
+        <circle cx="100" cy="100" r="92" fill="url(#tach-bg)" stroke={SAPPHIRE} strokeWidth="1.5" />
         <path
           d="M 35 152 A 80 80 0 1 1 165 152"
           fill="none"
-          stroke="url(#arc-grad)"
+          stroke="url(#tach-arc)"
           strokeWidth="3"
           strokeLinecap="round"
-          opacity="0.7"
+          opacity="0.85"
         />
-        {Array.from({ length: 11 }).map((_, i) => {
-          const a = (-135 + (270 / 10) * i) * (Math.PI / 180);
+        {Array.from({ length: 9 }).map((_, i) => {
+          const a = (-135 + (270 / 8) * i) * (Math.PI / 180);
           const x1 = 100 + Math.sin(a) * 78;
           const y1 = 100 - Math.cos(a) * 78;
           const x2 = 100 + Math.sin(a) * 88;
           const y2 = 100 - Math.cos(a) * 88;
+          const lx = 100 + Math.sin(a) * 66;
+          const ly = 100 - Math.cos(a) * 66 + 3;
+          const num = i; // 0..8 -> ×1000
+          const isRedline = i >= 6;
           return (
-            <line
-              key={i}
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              stroke="rgba(255,255,255,0.5)"
-              strokeWidth={i % 5 === 0 ? 2 : 1}
-            />
+            <g key={i}>
+              <line
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={isRedline ? "#ff3344" : "rgba(180,200,230,0.6)"}
+                strokeWidth={2}
+              />
+              <text
+                x={lx}
+                y={ly}
+                textAnchor="middle"
+                fill={isRedline ? "#ff3344" : "rgba(180,200,230,0.7)"}
+                fontSize="9"
+                fontFamily="ui-monospace, monospace"
+                fontWeight="700"
+              >
+                {num}
+              </text>
+            </g>
           );
         })}
       </svg>
@@ -196,17 +252,23 @@ function Speedometer({
           height: 78,
           marginLeft: -1.5,
           marginTop: -78,
-          background: "linear-gradient(to top, #ff0033, #ff6680)",
+          background: `linear-gradient(to top, ${SAPPHIRE_GLOW}, #ffffff)`,
           borderRadius: 2,
-          boxShadow: "0 0 12px rgba(255,0,51,.8)",
+          boxShadow: `0 0 12px ${SAPPHIRE_GLOW}`,
           rotate: angle,
         }}
       />
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <motion.div className="text-5xl font-bold font-mono text-glow tabular-nums">
-          <motion.span>{speedRounded}</motion.span>
+      <div className="absolute left-1/2 top-1/2 w-3 h-3 -ml-1.5 -mt-1.5 rounded-full bg-white shadow-[0_0_8px_white]" />
+      <div className="absolute inset-0 flex flex-col items-center justify-end pb-8 pointer-events-none">
+        <motion.div
+          className="text-3xl font-bold font-mono tabular-nums"
+          style={{ color: SAPPHIRE_GLOW }}
+        >
+          <motion.span>{rpmRounded}</motion.span>
         </motion.div>
-        <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">км/ч</span>
+        <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">
+          об/мин
+        </span>
       </div>
     </div>
   );

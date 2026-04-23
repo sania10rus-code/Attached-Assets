@@ -31,7 +31,7 @@ export const STO_LIST: Sto[] = [
     name: "ОНИКС-СЕРВИС Север",
     shortName: "Север",
     address: "Северный проспект, 7",
-    phone: "954-76-65",
+    phone: "+7 (812) 954-76-65",
     city: "Санкт-Петербург",
   },
   {
@@ -39,7 +39,7 @@ export const STO_LIST: Sto[] = [
     name: "ОНИКС-СЕРВИС Юг",
     shortName: "Юг",
     address: "Бухарестская, 1",
-    phone: "703-04-04",
+    phone: "+7 (812) 703-04-04",
     city: "Санкт-Петербург",
   },
   {
@@ -47,7 +47,7 @@ export const STO_LIST: Sto[] = [
     name: "ОНИКС-СЕРВИС Запад",
     shortName: "Запад",
     address: "ул. Нахимова, 18а",
-    phone: "355-16-04",
+    phone: "+7 (812) 355-16-04",
     city: "Санкт-Петербург",
   },
   {
@@ -55,7 +55,7 @@ export const STO_LIST: Sto[] = [
     name: "ОНИКС-СЕРВИС Восток",
     shortName: "Восток",
     address: "Ириновский проспект, 22к3",
-    phone: "200-00-00",
+    phone: "+7 (812) 200-00-00",
     city: "Санкт-Петербург",
   },
 ];

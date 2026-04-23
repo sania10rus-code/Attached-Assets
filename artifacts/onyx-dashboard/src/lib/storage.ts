@@ -328,15 +328,34 @@ export function addOrder(order: Order): AppData {
 
 export function markOrderPaid(orderId: string, amount?: number): AppData {
   const current = loadAppData();
+  const order = current.orders.find((o) => o.id === orderId);
+  const paidAmount = amount ?? order?.total ?? 0;
+  const today = new Date().toISOString().slice(0, 10);
+  const newHistory: HistoryEvent[] = order
+    ? [
+        ...current.history,
+        {
+          id: `pay-${orderId}-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          type: "Оплачено",
+          desc: `Оплата заказ-наряда №${orderId} — ${paidAmount.toLocaleString("ru-RU")} ₽`,
+          place: order.service,
+          mileage: Math.floor(current.telemetry.mileage),
+          date: today,
+          icon: "check",
+        },
+      ]
+    : current.history;
   const next: AppData = {
     ...current,
+    history: newHistory,
     orders: current.orders.map((o) =>
       o.id === orderId
         ? {
             ...o,
             paid: true,
             status: "Оплачено",
-            paidAmount: amount ?? o.total,
+            paidAmount,
             paidAt: new Date().toISOString(),
           }
         : o,

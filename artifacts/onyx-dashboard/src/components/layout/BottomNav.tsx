@@ -1,14 +1,15 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { Gauge, History, Bell, FileText, Settings, Wrench } from "lucide-react";
+import { Gauge, History, Lightbulb, Car, Settings } from "lucide-react";
+
+const ACTIVE_COLOR = "#2a5a8a";
 import { motion } from "framer-motion";
 
 const tabs = [
   { path: "/", label: "Главная", icon: Gauge },
+  { path: "/diagnostics", label: "Диагн.", icon: Car },
+  { path: "/tips", label: "Памятка", icon: Lightbulb },
   { path: "/history", label: "История", icon: History },
-  { path: "/reminders", label: "Напом.", icon: Bell },
-  { path: "/parts", label: "Запчасти", icon: Wrench },
-  { path: "/orders", label: "Заказы", icon: FileText },
   { path: "/more", label: "Ещё", icon: Settings },
 ];
 
@@ -24,26 +25,35 @@ export default function BottomNav() {
             const Icon = tab.icon;
 
             return (
-              <Link key={tab.path} href={tab.path} className="relative flex flex-col items-center justify-center w-16 h-full gap-1 text-xs">
+              <Link
+                key={tab.path}
+                href={tab.path}
+                className="relative flex flex-col items-center justify-center w-16 h-full gap-1 text-xs"
+                data-testid={`nav-${tab.path.replace("/", "") || "home"}`}
+              >
                 <Icon
                   size={22}
-                  className={`transition-colors duration-300 ${
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  }`}
+                  className={`transition-colors duration-300 ${isActive ? "" : "text-muted-foreground"}`}
+                  style={{ color: isActive ? ACTIVE_COLOR : undefined }}
                   strokeWidth={isActive ? 2.5 : 2}
                 />
                 <span
                   className={`transition-colors duration-300 font-medium ${
-                    isActive ? "text-primary" : "text-muted-foreground"
+                    isActive ? "" : "text-muted-foreground"
                   }`}
+                  style={{ color: isActive ? ACTIVE_COLOR : undefined }}
                 >
                   {tab.label}
                 </span>
-                
+
                 {isActive && (
                   <motion.div
                     layoutId="bottom-nav-indicator"
-                    className="absolute top-0 w-8 h-[2px] bg-primary shadow-[0_0_8px_rgba(255,0,0,0.8)] rounded-b-full"
+                    className="absolute top-0 w-8 h-[2px] rounded-b-full"
+                    style={{
+                      backgroundColor: "#2a5a8a",
+                      boxShadow: "0 0 8px rgba(42,90,138,0.8)",
+                    }}
                     initial={false}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />

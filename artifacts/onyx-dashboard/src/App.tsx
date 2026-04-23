@@ -17,6 +17,8 @@ import Reminders from "@/pages/Reminders";
 import Orders from "@/pages/Orders";
 import Parts from "@/pages/Parts";
 import More from "@/pages/More";
+import Diagnostics from "@/pages/Diagnostics";
+import Tips from "@/pages/Tips";
 
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
@@ -26,6 +28,8 @@ function OwnerRouter() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/diagnostics" component={Diagnostics} />
+      <Route path="/tips" component={Tips} />
       <Route path="/history" component={History} />
       <Route path="/reminders" component={Reminders} />
       <Route path="/orders" component={Orders} />
