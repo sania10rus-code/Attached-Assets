@@ -1,4 +1,5 @@
 import { CARS, findCarByLogin, findCarByVin, OWNER_LOGINS, type CarHotspotKey } from "@/lib/cars";
+import { secureGetSync, secureSetSync } from "@/lib/secureStorage";
 
 const STORAGE_PREFIX = "onix_offline_data_v1__";
 const LEGACY_KEY = "onix_offline_data_v1";
@@ -407,14 +408,13 @@ function keyFor(login: string): string {
 function currentLogin(): string {
   if (!isBrowser()) return "0000";
   try {
-    const raw = window.localStorage.getItem(AUTH_KEY);
+    // The full user blob is encrypted at rest; we read the plaintext
+    // session pointer (login + role) maintained by auth.ts.
+    const raw = window.localStorage.getItem("onix_session_v1");
     if (!raw) return "0000";
-    const u = JSON.parse(raw);
-    if (u?.role === "owner" && u?.login) return u.login as string;
-    if (u?.role === "mechanic") {
-      // Mechanic uses the most-recently-active owner namespace as primary view
-      return getMechanicActiveLogin();
-    }
+    const u = JSON.parse(raw) as { login?: string; role?: string };
+    if (u?.role === "owner" && u?.login) return u.login;
+    if (u?.role === "mechanic") return getMechanicActiveLogin();
     return "0000";
   } catch {
     return "0000";
@@ -437,13 +437,16 @@ export function setMechanicActiveLogin(login: string): void {
 export function loadAppDataFor(login: string): AppData {
   if (!isBrowser()) return defaultDataFor(login);
   try {
-    let stored = window.localStorage.getItem(keyFor(login));
+    // Per-login data (incl. VIN) is encrypted-at-rest via the sync secure
+    // storage layer; the helper transparently falls back to plaintext for
+    // legacy values written before this migration.
+    let stored = secureGetSync(keyFor(login));
     // Migrate legacy single-key data to the Skoda namespace once
     if (!stored && login === "0000") {
-      const legacy = window.localStorage.getItem(LEGACY_KEY);
+      const legacy = secureGetSync(LEGACY_KEY);
       if (legacy) {
         stored = legacy;
-        window.localStorage.setItem(keyFor("0000"), legacy);
+        secureSetSync(keyFor("0000"), legacy);
         window.localStorage.removeItem(LEGACY_KEY);
       }
     }
@@ -504,7 +507,7 @@ export function subscribe(fn: Listener): () => void {
 export function saveAppDataFor(login: string, data: AppData): void {
   if (!isBrowser()) return;
   try {
-    window.localStorage.setItem(keyFor(login), JSON.stringify(data));
+    secureSetSync(keyFor(login), JSON.stringify(data));
     notifyAll(loadAppData());
   } catch (e) {
     console.error("Ошибка сохранения данных", e);

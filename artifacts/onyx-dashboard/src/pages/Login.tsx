@@ -1,26 +1,65 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Zap, User, Lock, LogIn, ShieldCheck, Wrench } from "lucide-react";
+import { Zap, User, Lock, LogIn, ShieldCheck, Wrench, Fingerprint, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { detectRole } from "@/lib/auth";
+import { detectRole, getLastLogin } from "@/lib/auth";
+import {
+  isBiometricSupported,
+  isBiometricEnabled,
+  verifyBiometric,
+} from "@/lib/biometric";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginAs } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showPolicy, setShowPolicy] = useState(false);
+  const [bioSupported, setBioSupported] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+  const lastLogin = useMemo(() => getLastLogin(), []);
+  const bioEnabledForLast = useMemo(
+    () => (lastLogin ? isBiometricEnabled(lastLogin) : false),
+    [lastLogin],
+  );
+
+  useEffect(() => {
+    isBiometricSupported().then(setBioSupported);
+  }, []);
 
   const detectedRole = useMemo(
     () => (identifier.trim().length > 0 ? detectRole(identifier.trim()) : null),
     [identifier],
   );
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const err = login(identifier, password);
+    const err = await login(identifier, password);
     if (err) setError(err);
   };
+
+  const tryBio = async () => {
+    if (!lastLogin) return;
+    setError(null);
+    setBioBusy(true);
+    try {
+      const ok = await verifyBiometric(lastLogin);
+      if (!ok) {
+        setError("Биометрическая проверка не пройдена");
+        return;
+      }
+      const err = await loginAs(lastLogin);
+      if (err) setError(err);
+    } finally {
+      setBioBusy(false);
+    }
+  };
+
+  if (showPolicy) {
+    return <PrivacyPolicy mode="view" onClose={() => setShowPolicy(false)} />;
+  }
 
   return (
     <div
@@ -95,18 +134,35 @@ export default function Login() {
           )}
 
           {error && (
-            <div className="text-[11px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+            <div
+              data-testid="login-error"
+              className="text-[11px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2"
+            >
               {error}
             </div>
           )}
 
           <button
             type="submit"
+            data-testid="login-submit"
             className="w-full bg-primary text-primary-foreground rounded-xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
           >
             <LogIn size={16} />
             Войти
           </button>
+
+          {bioSupported && bioEnabledForLast && lastLogin && (
+            <button
+              type="button"
+              onClick={tryBio}
+              disabled={bioBusy}
+              data-testid="login-biometric"
+              className="w-full border border-primary/30 bg-primary/10 hover:bg-primary/15 text-primary rounded-xl py-3 text-xs font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform disabled:opacity-50"
+            >
+              <Fingerprint size={16} />
+              {bioBusy ? "Проверка…" : `Войти как ${lastLogin} по биометрии`}
+            </button>
+          )}
         </form>
 
         <div className="mt-4 px-1 text-[10px] text-muted-foreground/70 leading-relaxed font-mono">
@@ -119,6 +175,18 @@ export default function Login() {
           3333 / 3333 — BMW X5 (Дмитрий Соколов)
           <br />
           11111 / 11111 — Механик (Алексей Смирнов)
+        </div>
+
+        <div className="mt-6 flex items-center justify-center">
+          <button
+            type="button"
+            onClick={() => setShowPolicy(true)}
+            data-testid="login-policy-link"
+            className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 underline-offset-4 hover:underline"
+          >
+            <FileText size={12} />
+            Политика конфиденциальности
+          </button>
         </div>
       </motion.div>
     </div>

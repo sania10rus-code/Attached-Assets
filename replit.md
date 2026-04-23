@@ -38,3 +38,11 @@ Russian-language mobile-first PWA. Three owner profiles + one mechanic, isolated
 - Mechanic dashboard aggregates across all owners; uses composite `${ownerLogin}:${orderId}` key to avoid collisions.
 - 3D diagnostics: `src/components/Car3D.tsx` (R3F, drei OrbitControls), WebGL fallback in `pages/Diagnostics.tsx`.
 - Defect logging: `DefectForm` (mechanic) writes via `addDefectFor` → owner gets reminder + history alert.
+
+### Security & Privacy
+
+- **Privacy gate** (`src/pages/PrivacyPolicy.tsx`): shown after onboarding, before dashboard, on first login. Per-user acceptance stored in `onix_privacy_v1` (JSON list of `{login, version, acceptedAt}`). Decline → logout.
+- **Secure Storage** (`src/lib/secureStorage.ts`): async API uses Web Crypto AES-GCM with non-extractable CryptoKey persisted in IndexedDB; sync API uses XOR-stream against a 256-bit master key in `__onix_mk_v1` (used for per-login app data containing VIN). Auth blob `onix_auth_v1` is AES-GCM-encrypted (`AESG1:` prefix); per-login data uses sync layer (`ENC1:` prefix). Plaintext session pointer in `onix_session_v1` for sync code paths.
+- **HTTPS-only** (`src/lib/security.ts`): `isSecureContext()` + `installSecureFetchGuard()` rejects all `fetch` calls from insecure origins. Red banner shown when not secure.
+- **Biometric auth** (`src/lib/biometric.ts`): WebAuthn platform authenticator (Face ID / Touch ID). Toggle in More → Безопасность; quick-login button on Login screen for the last-used login.
+- **Privacy links**: footer of Login screen (`data-testid="login-policy-link"`) and Settings → Приложение → Политика конфиденциальности (`data-testid="more-policy"`).
