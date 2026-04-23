@@ -14,6 +14,7 @@ const iconMap: Record<HistoryIcon, React.ComponentType<{ size?: number; classNam
   key: Key,
   oil: Droplet,
   trip: Route,
+  check: Wrench,
 };
 
 const toneByType = (type: string): Tone => {

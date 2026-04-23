@@ -1,13 +1,38 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Square, Activity, Gauge, Thermometer, Bluetooth } from "lucide-react";
-import { loadAppData, updateTelemetry, formatMileage, addHistoryEvent } from "@/lib/storage";
+import { Play, Square, Activity, Gauge, Thermometer, Bluetooth, Fuel, MapPin, X } from "lucide-react";
+import {
+  loadAppData,
+  updateTelemetry,
+  formatMileage,
+  addHistoryEvent,
+  addTodayDistance,
+} from "@/lib/storage";
 import { useAppData } from "@/hooks/useAppData";
 import SchedulingModal from "@/components/SchedulingModal";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 
 const TICK_MS = 1000;
+const FUEL_CONSUMPTION_L_PER_100KM = 8;
 
-type Notice = { id: number; text: string; reminderText?: string };
+type Notice = {
+  id: number;
+  text: string;
+  reminderText?: string;
+  fuelAlert?: boolean;
+};
+
+const NEARBY_STATIONS = [
+  { name: "Лукойл", address: "Невский пр., 88", distance: "0.8 км" },
+  { name: "Газпромнефть", address: "Лиговский пр., 50", distance: "1.4 км" },
+  { name: "Shell", address: "Кременчугская ул., 9", distance: "2.1 км" },
+];
 
 function pickNextSpeed(prev: number): number {
   const drift = Math.round((Math.random() - 0.45) * 12);
@@ -31,21 +56,23 @@ export default function OBDEmulator() {
   const [running, setRunning] = useState(false);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [scheduleFor, setScheduleFor] = useState<string | null>(null);
+  const [stationsOpen, setStationsOpen] = useState(false);
   const timerRef = useRef<number | null>(null);
   const noticeId = useRef(1);
   const announced = useRef<Set<number>>(new Set());
+  const lowFuelAlerted = useRef(false);
   const tripRef = useRef<{ startedAt: number; startMileage: number; samples: number[] } | null>(null);
 
-  const pushNotice = (text: string, reminderText?: string) => {
+  const pushNotice = (n: Omit<Notice, "id">) => {
     const id = noticeId.current++;
-    setNotices((n) => [...n, { id, text, reminderText }]);
+    setNotices((arr) => [...arr, { ...n, id }]);
     window.setTimeout(() => {
-      setNotices((n) => n.filter((x) => x.id !== id));
-    }, 5500);
+      setNotices((arr) => arr.filter((x) => x.id !== id));
+    }, 6000);
   };
 
   const dismissNotice = (id: number) => {
-    setNotices((n) => n.filter((x) => x.id !== id));
+    setNotices((arr) => arr.filter((x) => x.id !== id));
   };
 
   const stop = () => {
@@ -76,9 +103,9 @@ export default function OBDEmulator() {
           date: dateIso,
           icon: "trip",
         });
-        pushNotice(`Поездка сохранена: ${distance} км`);
+        pushNotice({ text: `Поездка сохранена: ${distance} км` });
       } else {
-        pushNotice("Эмуляция остановлена");
+        pushNotice({ text: "Эмуляция остановлена" });
       }
     }
   };
@@ -86,13 +113,14 @@ export default function OBDEmulator() {
   const start = () => {
     if (timerRef.current != null) return;
     setRunning(true);
-    pushNotice("OBD-эмуляция запущена");
+    pushNotice({ text: "OBD-эмуляция запущена" });
     const cur = loadAppData();
     tripRef.current = {
       startedAt: Date.now(),
       startMileage: Math.floor(cur.telemetry.mileage),
       samples: [],
     };
+    lowFuelAlerted.current = cur.telemetry.fuelLiters < 10;
 
     timerRef.current = window.setInterval(() => {
       const cur = loadAppData();
@@ -104,15 +132,24 @@ export default function OBDEmulator() {
       const addedKm = speed / 3600;
       const mileageFloat = (t.mileage || 0) + addedKm;
       const mileage = Math.round(mileageFloat * 1000) / 1000;
+      const fuelDelta = (addedKm * FUEL_CONSUMPTION_L_PER_100KM) / 100;
+      const fuelLiters = Math.max(0, Math.round(((t.fuelLiters ?? 50) - fuelDelta) * 100) / 100);
 
       const next = updateTelemetry({
         speed,
         rpm,
         temperature,
         mileage,
+        fuelLiters,
       });
 
+      if (addedKm > 0) addTodayDistance(addedKm);
       if (tripRef.current) tripRef.current.samples.push(speed);
+
+      if (fuelLiters < 10 && !lowFuelAlerted.current) {
+        lowFuelAlerted.current = true;
+        pushNotice({ text: "Низкий уровень топлива. Найти АЗС?", fuelAlert: true });
+      }
 
       const flooredMileage = Math.floor(mileage);
       next.reminders.forEach((r) => {
@@ -120,11 +157,11 @@ export default function OBDEmulator() {
         const remaining = r.dueMileage - flooredMileage;
         if (remaining <= 1000 && remaining > 0 && !announced.current.has(r.id)) {
           announced.current.add(r.id);
-          pushNotice(`Скоро ТО: ${r.text} (через ${remaining} км)`, r.text);
+          pushNotice({ text: `Скоро ТО: ${r.text} (через ${remaining} км)`, reminderText: r.text });
         }
         if (remaining <= 0 && !announced.current.has(-r.id)) {
           announced.current.add(-r.id);
-          pushNotice(`Срок: ${r.text}`, r.text);
+          pushNotice({ text: `Срок: ${r.text}`, reminderText: r.text });
         }
       });
     }, TICK_MS);
@@ -138,6 +175,9 @@ export default function OBDEmulator() {
 
   const t = data.telemetry;
   const displayMileage = Math.floor(t.mileage);
+  const fuelLiters = t.fuelLiters ?? 50;
+  const fuelPct = Math.max(0, Math.min(100, (fuelLiters / 50) * 100));
+  const fuelLow = fuelLiters < 10;
 
   return (
     <div className="glass-card rounded-2xl p-5 border-white/5">
@@ -168,6 +208,36 @@ export default function OBDEmulator() {
         <LiveStat icon={Gauge} label="Скорость" value={String(t.speed)} unit="км/ч" pulse={running} />
         <LiveStat icon={Activity} label="Обороты" value={String(t.rpm)} unit="об/мин" pulse={running} />
         <LiveStat icon={Thermometer} label="Темп." value={t.temperature.toFixed(1)} unit="°C" pulse={running} />
+      </div>
+
+      <div className="bg-black/30 rounded-xl p-3 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <Fuel size={12} className={fuelLow ? "text-primary" : "text-muted-foreground"} />
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Топливо</span>
+          </div>
+          <span
+            className={`text-xs font-mono font-bold ${fuelLow ? "text-primary text-glow" : "text-foreground"}`}
+          >
+            {fuelLiters.toFixed(1)} л / 50 л
+          </span>
+        </div>
+        <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+          <motion.div
+            animate={{ width: `${fuelPct}%` }}
+            transition={{ duration: 0.4 }}
+            className={`h-full rounded-full ${fuelLow ? "bg-primary" : "bg-green-500/70"}`}
+          />
+        </div>
+        {fuelLow && (
+          <button
+            onClick={() => setStationsOpen(true)}
+            className="mt-2 text-[10px] text-primary font-semibold uppercase tracking-wider flex items-center gap-1"
+          >
+            <MapPin size={11} />
+            Найти АЗС
+          </button>
+        )}
       </div>
 
       <div className="flex justify-between items-baseline mb-4 px-1">
@@ -218,6 +288,18 @@ export default function OBDEmulator() {
                   Записаться
                 </button>
               )}
+              {n.fuelAlert && (
+                <button
+                  onClick={() => {
+                    setStationsOpen(true);
+                    dismissNotice(n.id);
+                  }}
+                  className="bg-primary text-primary-foreground rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-wider shrink-0 flex items-center gap-1"
+                >
+                  <MapPin size={10} />
+                  Найти
+                </button>
+              )}
             </motion.div>
           ))}
         </AnimatePresence>
@@ -228,6 +310,39 @@ export default function OBDEmulator() {
         onOpenChange={(v) => !v && setScheduleFor(null)}
         workName={scheduleFor || ""}
       />
+
+      <Sheet open={stationsOpen} onOpenChange={setStationsOpen}>
+        <SheetContent side="bottom" className="bg-background border-white/10 rounded-t-3xl">
+          <SheetHeader className="text-left">
+            <SheetTitle className="text-xl tracking-tight flex items-center gap-2">
+              <Fuel size={18} className="text-primary" />
+              Ближайшие АЗС
+            </SheetTitle>
+            <SheetDescription className="text-muted-foreground">
+              Топливо в баке: {fuelLiters.toFixed(1)} л
+            </SheetDescription>
+          </SheetHeader>
+          <div className="px-4 py-4 space-y-2">
+            {NEARBY_STATIONS.map((s) => (
+              <div
+                key={s.name}
+                className="glass-card rounded-2xl p-4 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
+                    <Fuel size={16} className="text-primary" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold">{s.name}</div>
+                    <div className="text-[11px] text-muted-foreground">{s.address}</div>
+                  </div>
+                </div>
+                <span className="text-xs font-mono text-primary">{s.distance}</span>
+              </div>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

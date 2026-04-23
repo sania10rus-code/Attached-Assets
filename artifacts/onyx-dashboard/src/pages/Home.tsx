@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronRight, Settings2, Activity, Fuel, Thermometer, Gauge, LineChart, Droplet, CalendarCheck } from "lucide-react";
+import { ChevronRight, Settings2, Activity, Fuel, Thermometer, Gauge, LineChart, Droplet, CalendarCheck, Route, AlertCircle, LogOut } from "lucide-react";
 import { Link } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sheet,
   SheetContent,
@@ -16,18 +17,22 @@ import OBDEmulator from "@/components/OBDEmulator";
 
 export default function Home() {
   const data = useAppData();
+  const { logout } = useAuth();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [oilOpen, setOilOpen] = useState(false);
 
-  const { telemetry, carModel, carYear, orders, reminders } = data;
+  const { telemetry, carModel, carYear, orders, reminders, todayDistance } = data;
   const displayMileage = Math.floor(telemetry.mileage);
   const oilReminder = reminders.find((r) => r.text.toLowerCase().includes("масл"));
   const kmToOil = oilReminder?.dueMileage ? Math.max(0, oilReminder.dueMileage - displayMileage) : 5000;
 
   const lastOrder = orders[0];
+  const unpaid = orders.filter((o) => o.paid === false);
+  const unpaidTotal = unpaid.reduce((s, o) => s + o.total, 0);
 
   const statCards = [
     { id: "mileage", label: "Пробег", value: formatMileage(displayMileage), unit: "км", icon: Settings2 },
+    { id: "today", label: "Сегодня", value: todayDistance.toFixed(1), unit: "км", icon: Route },
     { id: "errors", label: "Ошибки", value: String(telemetry.errors), unit: "", icon: Activity, success: telemetry.errors === 0 },
     { id: "fuel", label: "Заправка", value: String(telemetry.fuelDays), unit: "дней", icon: Fuel },
     { id: "temp", label: "Температура", value: String(telemetry.temperature), unit: "°C", icon: Thermometer },
@@ -49,8 +54,37 @@ export default function Home() {
               ОНИКС ТЕЛЕМЕТРИЯ · {carYear}
             </p>
           </div>
-          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <button
+              onClick={logout}
+              className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-muted-foreground"
+              title="Выйти"
+            >
+              <LogOut size={14} />
+            </button>
+          </div>
         </div>
+
+        {unpaid.length > 0 && (
+          <Link href="/orders">
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 bg-primary/10 border border-primary/30 rounded-2xl px-4 py-2.5 flex items-center justify-between cursor-pointer"
+            >
+              <div className="flex items-center gap-2 text-xs">
+                <AlertCircle size={14} className="text-primary" />
+                <span className="text-primary font-semibold">
+                  Не оплачено: {unpaid.length} наряд(а)
+                </span>
+              </div>
+              <span className="font-mono text-sm font-bold text-primary text-glow">
+                {formatRub(unpaidTotal)}
+              </span>
+            </motion.div>
+          </Link>
+        )}
 
         {/* Car Visual */}
         <div className="relative w-full aspect-[16/9] -mt-4 mb-6">

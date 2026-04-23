@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { FileText, Download, Phone, MapPin, Clock } from "lucide-react";
-import { formatRub, formatDateRu } from "@/lib/storage";
+import { FileText, Download, Phone, MapPin, Clock, CreditCard, Check } from "lucide-react";
+import { formatRub, formatDateRu, markOrderPaid } from "@/lib/storage";
 import { useAppData } from "@/hooks/useAppData";
 
 const pastOrders = [
@@ -22,15 +22,20 @@ export default function Orders() {
       <h1 className="text-2xl font-bold mb-1">Заказ-наряды</h1>
       <p className="text-xs text-muted-foreground uppercase tracking-widest mb-6">Активные и архив</p>
 
-      {orders.map((order) => (
+      {orders.map((order) => {
+        const unpaid = order.paid === false;
+        const paid = order.paid === true;
+        return (
         <motion.div
           key={order.id}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="glass-card rounded-2xl p-5 border-primary/30 bg-primary/5 relative overflow-hidden mb-6"
+          className={`glass-card rounded-2xl p-5 relative overflow-hidden mb-6 ${
+            unpaid ? "border-primary/40 bg-primary/5" : "border-white/10"
+          }`}
         >
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+          <div className={`absolute left-0 top-0 bottom-0 w-1 ${unpaid ? "bg-primary" : "bg-white/20"}`} />
 
           <div className="flex justify-between items-start mb-4 gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -42,9 +47,22 @@ export default function Orders() {
                 <p className="text-[11px] font-mono text-muted-foreground mt-0.5">№ {order.id}</p>
               </div>
             </div>
-            <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-full border border-primary/40 bg-primary/15 text-primary text-glow shrink-0 text-center leading-tight">
-              {order.status}
-            </span>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-full border border-primary/40 bg-primary/15 text-primary text-glow text-center leading-tight">
+                {order.status}
+              </span>
+              {(unpaid || paid) && (
+                <span
+                  className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                    paid
+                      ? "bg-green-500/15 text-green-500 border-green-500/30"
+                      : "bg-amber-400/15 text-amber-400 border-amber-400/30"
+                  }`}
+                >
+                  {paid ? "Оплачен" : "Не оплачен"}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-4 text-[11px] text-muted-foreground mb-4 pb-4 border-b border-white/10">
@@ -77,17 +95,42 @@ export default function Orders() {
             <span className="text-xl font-bold font-mono text-glow">{formatRub(order.total)}</span>
           </div>
 
-          <button
-            onClick={() => {
-              window.location.href = "tel:+78001234567";
-            }}
-            className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
-          >
-            <Phone size={16} />
-            Связаться с сервисом
-          </button>
+          {order.comment && (
+            <div className="mb-4 -mt-1 bg-black/30 rounded-xl px-3 py-2 text-[11px] text-muted-foreground italic">
+              «{order.comment}»
+            </div>
+          )}
+
+          {unpaid ? (
+            <button
+              onClick={() => markOrderPaid(order.id)}
+              className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+            >
+              <CreditCard size={16} />
+              Я оплатил
+            </button>
+          ) : paid ? (
+            <button
+              disabled
+              className="w-full bg-green-500/15 border border-green-500/30 text-green-500 rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2"
+            >
+              <Check size={16} />
+              Оплачен
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                window.location.href = "tel:+78001234567";
+              }}
+              className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+            >
+              <Phone size={16} />
+              Связаться с сервисом
+            </button>
+          )}
         </motion.div>
-      ))}
+        );
+      })}
 
       <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 px-1">Архив</h2>
       <div className="space-y-3">

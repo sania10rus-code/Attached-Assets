@@ -7,6 +7,7 @@ export type Telemetry = {
   speed: number;
   batteryVoltage: number;
   fuelDays: number;
+  fuelLiters: number;
   errors: number;
   lastUpdate: string | null;
 };
@@ -18,7 +19,8 @@ export type HistoryIcon =
   | "engine"
   | "key"
   | "oil"
-  | "trip";
+  | "trip"
+  | "check";
 
 export type HistoryEvent = {
   type: string;
@@ -50,21 +52,46 @@ export type Order = {
   status: string;
   items: OrderItem[];
   total: number;
+  paid?: boolean;
+  createdBy?: "owner" | "mechanic";
+  comment?: string;
+};
+
+export type AppointmentStatus = "Ожидает" | "В работе" | "Готово" | "Отменено";
+
+export type Appointment = {
+  id: string;
+  workName: string;
+  date: string;
+  slot: string;
+  ownerName: string;
+  carModel: string;
+  mileage: number;
+  status: AppointmentStatus;
+  mechanicComment?: string;
+  createdAt: string;
 };
 
 export type AppData = {
   carModel: string;
   carYear: number;
+  ownerName: string;
   telemetry: Telemetry;
+  todayDate: string;
+  todayDistance: number;
   history: HistoryEvent[];
   reminders: Reminder[];
   orders: Order[];
+  appointments: Appointment[];
   pendingSync: unknown[];
 };
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export const defaultData: AppData = {
   carModel: "Skoda Octavia A5",
   carYear: 2007,
+  ownerName: "Иван Петров",
   telemetry: {
     mileage: 102345,
     temperature: 90,
@@ -72,9 +99,12 @@ export const defaultData: AppData = {
     speed: 0,
     batteryVoltage: 12.4,
     fuelDays: 7,
+    fuelLiters: 50,
     errors: 0,
     lastUpdate: null,
   },
+  todayDate: todayIso(),
+  todayDistance: 0,
   history: [
     { type: "ТО", desc: "ТО у дилера", place: "Москва", mileage: 80000, date: "2025-01-15", icon: "wrench" },
     { type: "ДТП", desc: "ДТП, передний бампер", place: "Москва", mileage: 75280, date: "2021-09-10", icon: "car-crash" },
@@ -106,8 +136,11 @@ export const defaultData: AppData = {
         { name: "Масло моторное Castrol", qty: 1, price: 5000 },
       ],
       total: 18900,
+      paid: true,
+      createdBy: "owner",
     },
   ],
+  appointments: [],
   pendingSync: [],
 };
 
@@ -120,7 +153,17 @@ export function loadAppData(): AppData {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return { ...defaultData, ...JSON.parse(stored) } as AppData;
+      const parsed = JSON.parse(stored);
+      const merged: AppData = {
+        ...defaultData,
+        ...parsed,
+        telemetry: { ...defaultData.telemetry, ...(parsed.telemetry || {}) },
+      };
+      if (merged.todayDate !== todayIso()) {
+        merged.todayDate = todayIso();
+        merged.todayDistance = 0;
+      }
+      return merged;
     }
     saveAppData(defaultData);
     return defaultData;
@@ -168,6 +211,19 @@ export function updateTelemetry(patch: Partial<Telemetry>): AppData {
   return next;
 }
 
+export function addTodayDistance(km: number): AppData {
+  const current = loadAppData();
+  const today = todayIso();
+  const sameDay = current.todayDate === today;
+  const next: AppData = {
+    ...current,
+    todayDate: today,
+    todayDistance: (sameDay ? current.todayDistance : 0) + km,
+  };
+  saveAppData(next);
+  return next;
+}
+
 export function resetAppData(): AppData {
   saveAppData(defaultData);
   return defaultData;
@@ -183,6 +239,35 @@ export function addHistoryEvent(ev: HistoryEvent): AppData {
 export function addOrder(order: Order): AppData {
   const current = loadAppData();
   const next: AppData = { ...current, orders: [order, ...current.orders] };
+  saveAppData(next);
+  return next;
+}
+
+export function markOrderPaid(orderId: string): AppData {
+  const current = loadAppData();
+  const next: AppData = {
+    ...current,
+    orders: current.orders.map((o) =>
+      o.id === orderId ? { ...o, paid: true, status: "Оплачен" } : o,
+    ),
+  };
+  saveAppData(next);
+  return next;
+}
+
+export function addAppointment(a: Appointment): AppData {
+  const current = loadAppData();
+  const next: AppData = { ...current, appointments: [a, ...current.appointments] };
+  saveAppData(next);
+  return next;
+}
+
+export function updateAppointment(id: string, patch: Partial<Appointment>): AppData {
+  const current = loadAppData();
+  const next: AppData = {
+    ...current,
+    appointments: current.appointments.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+  };
   saveAppData(next);
   return next;
 }
