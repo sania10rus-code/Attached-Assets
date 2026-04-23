@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ListChecks,
@@ -14,13 +14,15 @@ import {
   CreditCard,
   X,
   MapPin,
+  AlertTriangle,
 } from "lucide-react";
-import { useAppData } from "@/hooks/useAppData";
 import {
-  updateAppointment,
+  updateAppointmentFor,
   formatDateRu,
   formatRub,
-  markOrderPaid,
+  markOrderPaidFor,
+  loadAllOwnersData,
+  subscribe,
   type Appointment,
   type AppointmentStatus,
   type Order,
@@ -28,6 +30,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { findSto } from "@/lib/catalog";
 import WorkOrderDocument from "@/components/WorkOrderDocument";
+import DefectForm from "@/components/DefectForm";
 
 type Tab = "tasks" | "history" | "chat" | "profile";
 
@@ -38,34 +41,63 @@ const statusMeta: Record<AppointmentStatus, { chip: string; dot: string }> = {
   Отменено: { chip: "bg-white/5 text-muted-foreground border-white/10", dot: "bg-muted-foreground" },
 };
 
+type EnrichedAppt = Appointment & { ownerLogin: string };
+type EnrichedOrder = Order & { ownerLogin: string };
+
 export default function MechanicDashboard() {
   const { user, logout } = useAuth();
-  const data = useAppData();
   const [tab, setTab] = useState<Tab>("tasks");
   const [online, setOnline] = useState(true);
-  const [orderFor, setOrderFor] = useState<Appointment | null>(null);
+  const [orderFor, setOrderFor] = useState<EnrichedAppt | null>(null);
   const [showOrderForm, setShowOrderForm] = useState(false);
-  const [confirmPayFor, setConfirmPayFor] = useState<Order | null>(null);
+  const [confirmPayFor, setConfirmPayFor] = useState<EnrichedOrder | null>(null);
+  const [defectForVin, setDefectForVin] = useState<string | null>(null);
+
+  const [snapshot, setSnapshot] = useState(() => loadAllOwnersData());
+  useEffect(() => {
+    setSnapshot(loadAllOwnersData());
+    const unsub = subscribe(() => setSnapshot(loadAllOwnersData()));
+    return () => unsub();
+  }, []);
+
+  const allAppointments: EnrichedAppt[] = useMemo(() => {
+    const out: EnrichedAppt[] = [];
+    snapshot.forEach(({ login, data }) => {
+      data.appointments.forEach((a) => out.push({ ...a, ownerLogin: login }));
+    });
+    return out;
+  }, [snapshot]);
+
+  const allOrders: EnrichedOrder[] = useMemo(() => {
+    const out: EnrichedOrder[] = [];
+    snapshot.forEach(({ login, data }) => {
+      data.orders.forEach((o) => out.push({ ...o, ownerLogin: login }));
+    });
+    return out;
+  }, [snapshot]);
 
   const tasks = useMemo(
     () =>
-      [...data.appointments].sort((a, b) => {
+      [...allAppointments].sort((a, b) => {
         const order: Record<AppointmentStatus, number> = { Ожидает: 0, "В работе": 1, Готово: 2, Отменено: 3 };
         return order[a.status] - order[b.status] || b.createdAt.localeCompare(a.createdAt);
       }),
-    [data.appointments],
+    [allAppointments],
   );
 
-  const orderById = useMemo(() => {
-    const m = new Map<string, Order>();
-    data.orders.forEach((o) => m.set(o.id, o));
+  // Composite key (ownerLogin:orderId) avoids cross-owner collisions.
+  const orderByKey = useMemo(() => {
+    const m = new Map<string, EnrichedOrder>();
+    allOrders.forEach((o) => m.set(`${o.ownerLogin}:${o.id}`, o));
     return m;
-  }, [data.orders]);
+  }, [allOrders]);
+  const getOrderForTask = (t: EnrichedAppt): EnrichedOrder | undefined =>
+    t.orderId ? orderByKey.get(`${t.ownerLogin}:${t.orderId}`) : undefined;
 
   const activeTasks = tasks.filter((t) => {
     if (t.status === "Отменено") return false;
     if (t.status === "Готово") {
-      const o = t.orderId ? orderById.get(t.orderId) : undefined;
+      const o = getOrderForTask(t);
       return o ? o.paid !== true : true;
     }
     return true;
@@ -73,7 +105,7 @@ export default function MechanicDashboard() {
   const archivedTasks = tasks.filter((t) => {
     if (t.status === "Отменено") return true;
     if (t.status === "Готово") {
-      const o = t.orderId ? orderById.get(t.orderId) : undefined;
+      const o = getOrderForTask(t);
       return o?.paid === true;
     }
     return false;
@@ -89,6 +121,9 @@ export default function MechanicDashboard() {
             <h1 className="text-xl font-bold tracking-tight text-glow">{orgName}</h1>
             <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
               {user?.name} · Панель механика
+            </p>
+            <p className="text-[10px] text-muted-foreground/60 font-mono mt-0.5">
+              Активных задач: {activeTasks.length} · Машин: {snapshot.length}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -107,6 +142,7 @@ export default function MechanicDashboard() {
               onClick={logout}
               className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-muted-foreground"
               title="Выйти"
+              data-testid="mech-logout"
             >
               <LogOut size={14} />
             </button>
@@ -118,17 +154,18 @@ export default function MechanicDashboard() {
         {tab === "tasks" && (
           <TasksTab
             tasks={activeTasks}
-            getOrder={(id) => (id ? orderById.get(id) : undefined)}
-            onChange={(id, patch) => updateAppointment(id, patch)}
+            getOrder={getOrderForTask}
+            onChange={(t, patch) => updateAppointmentFor(t.ownerLogin, t.id, patch)}
             onCreateOrder={(t) => {
               setOrderFor(t);
               setShowOrderForm(true);
             }}
             onConfirmPay={(o) => setConfirmPayFor(o)}
+            onAddDefect={(vin) => setDefectForVin(vin)}
           />
         )}
         {tab === "history" && (
-          <HistoryTab tasks={archivedTasks} getOrder={(id) => (id ? orderById.get(id) : undefined)} />
+          <HistoryTab tasks={archivedTasks} getOrder={getOrderForTask} />
         )}
         {tab === "chat" && (
           <Stub title="Чат с владельцами" subtitle="Раздел в разработке" icon={MessageSquare} />
@@ -183,7 +220,7 @@ export default function MechanicDashboard() {
         mechanicName={user?.name || ""}
         defaultStoId={orderFor?.stoId || "north"}
         onSent={(orderId) => {
-          if (orderFor) updateAppointment(orderFor.id, { status: "Готово", orderId });
+          if (orderFor) updateAppointmentFor(orderFor.ownerLogin, orderFor.id, { status: "Готово", orderId });
         }}
       />
 
@@ -191,9 +228,17 @@ export default function MechanicDashboard() {
         order={confirmPayFor}
         onClose={() => setConfirmPayFor(null)}
         onConfirm={(amount) => {
-          if (confirmPayFor) markOrderPaid(confirmPayFor.id, amount);
+          if (confirmPayFor) markOrderPaidFor(confirmPayFor.ownerLogin, confirmPayFor.id, amount);
           setConfirmPayFor(null);
         }}
+      />
+
+      <DefectForm
+        open={!!defectForVin}
+        onClose={() => setDefectForVin(null)}
+        vin={defectForVin || ""}
+        mechanicName={user?.name || "Механик"}
+        mechanicOrg={user?.org}
       />
     </div>
   );
@@ -205,12 +250,14 @@ function TasksTab({
   onChange,
   onCreateOrder,
   onConfirmPay,
+  onAddDefect,
 }: {
-  tasks: Appointment[];
-  getOrder: (id?: string) => Order | undefined;
-  onChange: (id: string, patch: Partial<Appointment>) => void;
-  onCreateOrder: (t: Appointment) => void;
-  onConfirmPay: (o: Order) => void;
+  tasks: EnrichedAppt[];
+  getOrder: (t: EnrichedAppt) => EnrichedOrder | undefined;
+  onChange: (t: EnrichedAppt, patch: Partial<Appointment>) => void;
+  onCreateOrder: (t: EnrichedAppt) => void;
+  onConfirmPay: (o: EnrichedOrder) => void;
+  onAddDefect: (vin: string) => void;
 }) {
   if (tasks.length === 0) {
     return (
@@ -229,12 +276,13 @@ function TasksTab({
     <div className="p-6 space-y-3">
       {tasks.map((t) => (
         <TaskCard
-          key={t.id}
+          key={`${t.ownerLogin}:${t.id}`}
           task={t}
-          order={getOrder(t.orderId)}
+          order={getOrder(t)}
           onChange={onChange}
           onCreateOrder={onCreateOrder}
           onConfirmPay={onConfirmPay}
+          onAddDefect={onAddDefect}
         />
       ))}
     </div>
@@ -247,12 +295,14 @@ function TaskCard({
   onChange,
   onCreateOrder,
   onConfirmPay,
+  onAddDefect,
 }: {
-  task: Appointment;
-  order?: Order;
-  onChange: (id: string, patch: Partial<Appointment>) => void;
-  onCreateOrder: (t: Appointment) => void;
-  onConfirmPay: (o: Order) => void;
+  task: EnrichedAppt;
+  order?: EnrichedOrder;
+  onChange: (t: EnrichedAppt, patch: Partial<Appointment>) => void;
+  onCreateOrder: (t: EnrichedAppt) => void;
+  onConfirmPay: (o: EnrichedOrder) => void;
+  onAddDefect: (vin: string) => void;
 }) {
   const meta = statusMeta[task.status];
   const [comment, setComment] = useState(task.mechanicComment || "");
@@ -260,7 +310,7 @@ function TaskCard({
 
   const saveComment = () => {
     if (comment !== (task.mechanicComment || "")) {
-      onChange(task.id, { mechanicComment: comment });
+      onChange(task, { mechanicComment: comment });
     }
   };
 
@@ -270,12 +320,13 @@ function TaskCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       className="glass-card rounded-2xl p-4 border-white/5"
+      data-testid={`task-${task.id}`}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="min-w-0">
           <h3 className="font-semibold text-sm leading-tight">{task.ownerName}</h3>
           <p className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
-            {task.carModel}
+            {task.carModel} · {task.carPlate}
           </p>
         </div>
         <span
@@ -332,13 +383,13 @@ function TaskCard({
         <>
           <div className="grid grid-cols-2 gap-2 mb-3">
             <button
-              onClick={() => onChange(task.id, { status: "Готово" })}
+              onClick={() => onChange(task, { status: "Готово" })}
               className="bg-green-500/15 border border-green-500/30 text-green-500 rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[.98] transition-transform"
             >
               <Check size={14} />В норме
             </button>
             <button
-              onClick={() => onChange(task.id, { status: "В работе" })}
+              onClick={() => onChange(task, { status: "В работе" })}
               className="bg-blue-500/15 border border-blue-500/30 text-blue-400 rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[.98] transition-transform"
             >
               <Wrench size={14} />
@@ -355,13 +406,23 @@ function TaskCard({
             className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary/50 resize-none mb-3"
           />
 
-          <button
-            onClick={() => onCreateOrder(task)}
-            className="w-full bg-primary text-primary-foreground rounded-xl py-3 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[.98] transition-transform"
-          >
-            <FilePlus size={14} />
-            Создать заказ-наряд
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => onAddDefect(task.carVin)}
+              className="bg-amber-400/15 border border-amber-400/30 text-amber-300 rounded-xl py-3 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[.98] transition-transform"
+              data-testid={`add-defect-${task.id}`}
+            >
+              <AlertTriangle size={14} />
+              Неисправность
+            </button>
+            <button
+              onClick={() => onCreateOrder(task)}
+              className="bg-primary text-primary-foreground rounded-xl py-3 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[.98] transition-transform"
+            >
+              <FilePlus size={14} />
+              Заказ-наряд
+            </button>
+          </div>
         </>
       )}
     </motion.div>
@@ -372,8 +433,8 @@ function HistoryTab({
   tasks,
   getOrder,
 }: {
-  tasks: Appointment[];
-  getOrder: (id?: string) => Order | undefined;
+  tasks: EnrichedAppt[];
+  getOrder: (t: EnrichedAppt) => EnrichedOrder | undefined;
 }) {
   if (tasks.length === 0) {
     return (
@@ -389,9 +450,9 @@ function HistoryTab({
     <div className="p-6 space-y-3">
       {tasks.map((t) => {
         const meta = statusMeta[t.status];
-        const order = getOrder(t.orderId);
+        const order = getOrder(t);
         return (
-          <div key={t.id} className="glass-card rounded-2xl p-4 border-white/5">
+          <div key={`${t.ownerLogin}:${t.id}`} className="glass-card rounded-2xl p-4 border-white/5">
             <div className="flex items-start justify-between mb-2">
               <div>
                 <h3 className="font-semibold text-sm">{t.ownerName}</h3>
@@ -447,7 +508,7 @@ function ConfirmPaymentSheet({
   onClose,
   onConfirm,
 }: {
-  order: Order | null;
+  order: EnrichedOrder | null;
   onClose: () => void;
   onConfirm: (amount: number) => void;
 }) {

@@ -11,14 +11,16 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import {
-  addOrder,
-  addHistoryEvent,
+  addOrderFor,
+  addHistoryEventFor,
   formatRub,
   formatMileage,
   loadAppData,
+  loadAppDataFor,
   type Appointment,
   type OrderItem,
 } from "@/lib/storage";
+import { findCarByVin } from "@/lib/cars";
 import { PARTS_CATALOG, findSto, type CatalogPart } from "@/lib/catalog";
 
 type Props = {
@@ -69,7 +71,10 @@ export default function WorkOrderDocument({
   const [showCatalog, setShowCatalog] = useState(false);
   const [warnDiff, setWarnDiff] = useState<number | null>(null);
 
-  const orderId = useMemo(() => String(Math.floor(Math.random() * 90000) + 10000), [appointment?.id]);
+  const orderId = useMemo(
+    () => `${(carVin || "OWN").slice(-4)}-${Date.now().toString(36).slice(-6)}-${Math.random().toString(36).slice(2, 6)}`,
+    [appointment?.id, carVin],
+  );
 
   const total = useMemo(
     () =>
@@ -112,9 +117,11 @@ export default function WorkOrderDocument({
     });
   };
 
+  const targetLogin = findCarByVin(carVin)?.login || "0000";
+
   const trySend = () => {
     if (works.length + parts.length === 0) return;
-    const fresh = loadAppData();
+    const fresh = loadAppDataFor(targetLogin);
     const actual = Math.floor(fresh.telemetry.mileage);
     const diff = Math.abs(mileage - actual);
     if (diff > 500 && diff <= 1000) {
@@ -125,7 +132,7 @@ export default function WorkOrderDocument({
   };
 
   const finalizeSend = () => {
-    const fresh = loadAppData();
+    const fresh = loadAppDataFor(targetLogin);
     const actual = Math.floor(fresh.telemetry.mileage);
     const diff = Math.abs(mileage - actual);
     const items: OrderItem[] = [
@@ -136,7 +143,7 @@ export default function WorkOrderDocument({
         price: p.price * p.qty,
       })),
     ];
-    addOrder({
+    addOrderFor(targetLogin, {
       id: orderId,
       date: new Date().toISOString().slice(0, 10),
       service: sto.name,
@@ -148,7 +155,7 @@ export default function WorkOrderDocument({
       createdBy: "mechanic",
       comment: comment || undefined,
     });
-    addHistoryEvent({
+    addHistoryEventFor(targetLogin, {
       type: "ТО",
       desc: `${workType}: ${appointment?.workName || "работы"}${comment ? ` — ${comment}` : ""}`,
       place: sto.name,
@@ -157,7 +164,7 @@ export default function WorkOrderDocument({
       icon: "check",
     });
     if (diff > 1000) {
-      addHistoryEvent({
+      addHistoryEventFor(targetLogin, {
         type: "Расхождение",
         desc: `Расхождение пробега ${formatMileage(diff)} км`,
         place: sto.name,
@@ -257,7 +264,7 @@ export default function WorkOrderDocument({
             <DiscrepancyWarning
               diff={warnDiff}
               reported={mileage}
-              actual={Math.floor(loadAppData().telemetry.mileage)}
+              actual={Math.floor(loadAppDataFor(targetLogin).telemetry.mileage)}
               onCancel={() => setWarnDiff(null)}
               onConfirm={() => finalizeSend()}
             />

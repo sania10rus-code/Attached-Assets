@@ -60,7 +60,7 @@ export default function SchedulingModal({ open, onOpenChange, workName }: Props)
     const cur = loadAppData();
     setSelectedSto(stoId);
     addAppointment({
-      id: String(Math.floor(Math.random() * 90000) + 10000),
+      id: `appt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       workName,
       date,
       slot,

@@ -112,9 +112,13 @@ export default function Login() {
         <div className="mt-4 px-1 text-[10px] text-muted-foreground/70 leading-relaxed font-mono">
           Тестовые данные:
           <br />
-          Владелец — 0000 / 0000
+          0000 / 0000 — Skoda Octavia (Иван Петров)
           <br />
-          Механик — 11111 / 11111
+          2222 / 2222 — Audi A6 (Сергей Иванов)
+          <br />
+          3333 / 3333 — BMW X5 (Дмитрий Соколов)
+          <br />
+          11111 / 11111 — Механик (Алексей Смирнов)
         </div>
       </motion.div>
     </div>

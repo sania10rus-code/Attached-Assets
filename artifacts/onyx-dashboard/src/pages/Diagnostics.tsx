@@ -1,115 +1,108 @@
 import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Wrench, Disc3, Zap, GitBranch, Filter, Droplet } from "lucide-react";
+import { X, Wrench, Disc3, Zap, GitBranch, Filter, Droplet, ShoppingCart, Car as CarIcon, AlertTriangle } from "lucide-react";
+import { Link } from "wouter";
 import { useAppData } from "@/hooks/useAppData";
-import { formatMileage } from "@/lib/storage";
+import { formatMileage, type Defect } from "@/lib/storage";
+import { findCarByVin, type CarHotspotKey, type CarProfile } from "@/lib/cars";
+import Car3D, { type HotspotStatus } from "@/components/Car3D";
+
+function detectWebGL(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const canvas = document.createElement("canvas");
+    return !!(window.WebGLRenderingContext && (canvas.getContext("webgl") || canvas.getContext("experimental-webgl")));
+  } catch {
+    return false;
+  }
+}
 
 const SAPPHIRE = "#1a3a5c";
 const SAPPHIRE_GLOW = "#2a5a8a";
 
-type NodeKey = "engine" | "brakes" | "spark" | "belt" | "filter";
-
-type NodeDef = {
-  key: NodeKey;
-  label: string;
-  reminderMatch: (text: string) => boolean;
-  // position in % of svg viewBox (top-down silhouette)
-  x: number;
-  y: number;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement> & { size?: number }>;
-  rec: string;
+const NODE_ICONS: Record<CarHotspotKey, React.ComponentType<React.SVGProps<SVGSVGElement> & { size?: number }>> = {
+  engine: Droplet,
+  "front-wheels": Disc3,
+  "rear-wheels": Disc3,
+  grille: Filter,
+  underbody: GitBranch,
+  cabin: Zap,
 };
 
-const NODES: NodeDef[] = [
-  {
-    key: "engine",
-    label: "Двигатель / Масло",
-    reminderMatch: (t) => /масл/i.test(t),
-    x: 50,
-    y: 22,
-    icon: Droplet,
-    rec: "Замена моторного масла и масляного фильтра каждые 10–15 тыс. км.",
-  },
-  {
-    key: "filter",
-    label: "Воздушный фильтр",
-    reminderMatch: (t) => /воздуш/i.test(t),
-    x: 30,
-    y: 32,
-    icon: Filter,
-    rec: "Замена воздушного фильтра каждые 30 тыс. км.",
-  },
-  {
-    key: "spark",
-    label: "Свечи зажигания",
-    reminderMatch: (t) => /свеч/i.test(t),
-    x: 70,
-    y: 32,
-    icon: Zap,
-    rec: "Замена свечей зажигания NGK каждые 60 тыс. км.",
-  },
-  {
-    key: "belt",
-    label: "Ремень ГРМ",
-    reminderMatch: (t) => /грм|ремен/i.test(t),
-    x: 50,
-    y: 45,
-    icon: GitBranch,
-    rec: "Проверка/замена ремня ГРМ каждые 60–90 тыс. км. Обрыв грозит капремонтом.",
-  },
-  {
-    key: "brakes",
-    label: "Тормозные колодки",
-    reminderMatch: (t) => /тормоз|колод/i.test(t),
-    x: 50,
-    y: 78,
-    icon: Disc3,
-    rec: "Замена передних колодок TRW при остатке менее 3 мм.",
-  },
-];
-
-type NodeStatus = {
-  node: NodeDef;
-  remainingKm: number | null;
-  status: "ok" | "warn" | "danger" | "unknown";
-};
-
-function statusColor(s: NodeStatus["status"]) {
-  if (s === "ok") return "#22c55e";
-  if (s === "warn") return "#eab308";
-  if (s === "danger") return "#ef4444";
-  return "#64748b";
+function statusColorFor(remainingKm: number | null, defect?: Defect): string {
+  if (defect) {
+    if (defect.severity === "critical" || defect.wearPercent > 80) return "#ef4444";
+    if (defect.wearPercent >= 50) return "#eab308";
+    return "#f97316";
+  }
+  if (remainingKm == null) return "#64748b";
+  if (remainingKm < 500) return "#ef4444";
+  if (remainingKm < 2000) return "#eab308";
+  return "#22c55e";
 }
 
 export default function Diagnostics() {
-  const { reminders, telemetry, carModel, carYear } = useAppData();
-  const mileage = Math.floor(telemetry.mileage);
-
-  const nodes: NodeStatus[] = useMemo(() => {
-    return NODES.map((n) => {
-      const rem = reminders.find((r) => n.reminderMatch(r.text));
-      if (!rem || !rem.dueMileage) {
-        return { node: n, remainingKm: null, status: "unknown" as const };
+  const data = useAppData();
+  const car: CarProfile = useMemo(() => {
+    return (
+      findCarByVin(data.carVin) || {
+        login: "0000",
+        password: "0000",
+        vin: data.carVin,
+        plate: data.carPlate,
+        model: data.carModel,
+        year: data.carYear,
+        ownerName: data.ownerName,
+        ownerPhone: data.ownerPhone,
+        initialMileage: data.telemetry.mileage,
+        bodyColor: "#1f3854",
+        bodyAccent: SAPPHIRE_GLOW,
+        style: "hatchback",
+        hotspots: [],
       }
-      const remainingKm = rem.dueMileage - mileage;
-      let status: NodeStatus["status"] = "ok";
-      if (remainingKm < 500) status = "danger";
-      else if (remainingKm < 2000) status = "warn";
-      return { node: n, remainingKm, status };
-    });
-  }, [reminders, mileage]);
+    );
+  }, [data.carVin, data.carModel, data.carYear, data.carPlate, data.ownerName, data.ownerPhone, data.telemetry.mileage]);
 
-  const [active, setActive] = useState<NodeStatus | null>(null);
+  const mileage = Math.floor(data.telemetry.mileage);
+
+  const statuses: HotspotStatus[] = useMemo(() => {
+    return car.hotspots.map((h) => {
+      const defect = data.defects.find((d) => d.nodeKey === h.key && !d.resolved);
+      const rem = data.reminders.find((r) =>
+        r.text.toLowerCase().includes(h.reminderText.toLowerCase().split(" ")[1] || h.reminderText.toLowerCase()),
+      );
+      const remainingKm = rem?.dueMileage != null ? rem.dueMileage - mileage : null;
+      return {
+        key: h.key,
+        color: statusColorFor(remainingKm, defect),
+        label: h.label,
+        remainingKm,
+        hasDefect: !!defect,
+        wearPercent: defect?.wearPercent,
+      };
+    });
+  }, [car.hotspots, data.defects, data.reminders, mileage]);
+
+  const statusByKey = useMemo(() => {
+    const m = {} as Record<CarHotspotKey, HotspotStatus>;
+    statuses.forEach((s) => (m[s.key] = s));
+    return m;
+  }, [statuses]);
+
+  const [activeKey, setActiveKey] = useState<CarHotspotKey | null>(null);
+  const activeHotspot = car.hotspots.find((h) => h.key === activeKey);
+  const activeStatus = activeKey ? statusByKey[activeKey] : null;
+  const activeDefect = activeKey ? data.defects.find((d) => d.nodeKey === activeKey && !d.resolved) : null;
 
   const counts = useMemo(() => {
     const c = { ok: 0, warn: 0, danger: 0 };
-    nodes.forEach((n) => {
-      if (n.status === "ok") c.ok++;
-      else if (n.status === "warn") c.warn++;
-      else if (n.status === "danger") c.danger++;
+    statuses.forEach((s) => {
+      if (s.color === "#22c55e") c.ok++;
+      else if (s.color === "#ef4444") c.danger++;
+      else if (s.color === "#eab308" || s.color === "#f97316") c.warn++;
     });
     return c;
-  }, [nodes]);
+  }, [statuses]);
 
   return (
     <motion.div
@@ -120,15 +113,30 @@ export default function Diagnostics() {
     >
       <h1 className="text-2xl font-bold mb-1">Диагностика</h1>
       <p className="text-xs text-muted-foreground uppercase tracking-widest mb-5">
-        Состояние узлов · {carModel} ({carYear})
+        {car.model} ({car.year}) · 3D-схема узлов
       </p>
 
       <div
-        className="rounded-2xl p-4 mb-4 border"
-        style={{ backgroundColor: "#0d1726", borderColor: SAPPHIRE }}
+        className="rounded-2xl mb-4 border overflow-hidden relative"
+        style={{ backgroundColor: "#0b1424", borderColor: SAPPHIRE, height: 320 }}
+        data-testid="car-3d-canvas"
       >
-        <CarSchematic nodes={nodes} onPick={setActive} />
+        {useMemo(() => detectWebGL(), [])
+          ? <Car3D car={car} statusByKey={statusByKey} onPick={setActiveKey} selectedKey={activeKey} />
+          : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
+              <CarIcon size={48} className="mb-3" style={{ color: SAPPHIRE_GLOW }} />
+              <p className="text-sm font-semibold mb-1">3D-схема недоступна</p>
+              <p className="text-xs text-muted-foreground">
+                В браузере отключён WebGL. Узлы доступны в списке ниже.
+              </p>
+            </div>
+          )}
       </div>
+
+      <p className="text-[10px] text-center text-muted-foreground/70 uppercase tracking-widest mb-4 font-mono">
+        Поверните пальцем · нажмите узел для деталей
+      </p>
 
       <div className="grid grid-cols-3 gap-2 mb-5 text-center">
         <SummaryChip label="Норма" value={counts.ok} color="#22c55e" />
@@ -140,41 +148,54 @@ export default function Diagnostics() {
         Узлы
       </h2>
       <div className="space-y-2">
-        {nodes.map((n) => (
-          <button
-            key={n.node.key}
-            onClick={() => setActive(n)}
-            data-testid={`node-${n.node.key}`}
-            className="w-full glass-card rounded-2xl px-3 py-3 flex items-center gap-3 active:scale-[.99] transition-transform text-left"
-            style={{ borderColor: `${SAPPHIRE}66` }}
-          >
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-              style={{ backgroundColor: `${statusColor(n.status)}22` }}
+        {car.hotspots.map((h) => {
+          const st = statusByKey[h.key];
+          const Icon = NODE_ICONS[h.key] || Wrench;
+          const defect = data.defects.find((d) => d.nodeKey === h.key && !d.resolved);
+          return (
+            <button
+              key={h.key}
+              onClick={() => setActiveKey(h.key)}
+              data-testid={`node-${h.key}`}
+              className="w-full glass-card rounded-2xl px-3 py-3 flex items-center gap-3 active:scale-[.99] transition-transform text-left"
+              style={{ borderColor: `${SAPPHIRE}66` }}
             >
-              <n.node.icon size={18} style={{ color: statusColor(n.status) }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold leading-tight">{n.node.label}</div>
-              <div className="text-[11px] text-muted-foreground font-mono">
-                {n.remainingKm == null
-                  ? "нет данных"
-                  : n.remainingKm <= 0
-                    ? `просрочено на ${formatMileage(-n.remainingKm)} км`
-                    : `осталось ${formatMileage(n.remainingKm)} км`}
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${st.color}22` }}
+              >
+                <Icon size={18} style={{ color: st.color }} />
               </div>
-            </div>
-            <div
-              className="w-2.5 h-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: statusColor(n.status), boxShadow: `0 0 8px ${statusColor(n.status)}` }}
-            />
-          </button>
-        ))}
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold leading-tight">{h.label}</div>
+                <div className="text-[11px] text-muted-foreground font-mono">
+                  {defect
+                    ? `${defect.severity === "critical" ? "Срочно" : "Внимание"} · износ ${defect.wearPercent}%`
+                    : st.remainingKm == null
+                      ? "нет данных"
+                      : st.remainingKm <= 0
+                        ? `просрочено ${formatMileage(-st.remainingKm)} км`
+                        : `осталось ${formatMileage(st.remainingKm)} км`}
+                </div>
+              </div>
+              {defect && <AlertTriangle size={14} style={{ color: st.color }} />}
+              <div
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: st.color, boxShadow: `0 0 8px ${st.color}` }}
+              />
+            </button>
+          );
+        })}
       </div>
 
       <div className="h-12" />
 
-      <NodeSheet status={active} onClose={() => setActive(null)} />
+      <NodeSheet
+        hotspot={activeHotspot}
+        status={activeStatus}
+        defect={activeDefect}
+        onClose={() => setActiveKey(null)}
+      />
     </motion.div>
   );
 }
@@ -195,132 +216,23 @@ function SummaryChip({ label, value, color }: { label: string; value: number; co
   );
 }
 
-function CarSchematic({
-  nodes,
-  onPick,
+function NodeSheet({
+  hotspot,
+  status,
+  defect,
+  onClose,
 }: {
-  nodes: NodeStatus[];
-  onPick: (n: NodeStatus) => void;
+  hotspot?: { key: CarHotspotKey; label: string; recommendation: string; partId: string };
+  status: HotspotStatus | null;
+  defect: Defect | null | undefined;
+  onClose: () => void;
 }) {
-  return (
-    <div className="relative w-full" style={{ aspectRatio: "1 / 1.7" }}>
-      <svg viewBox="0 0 100 170" className="w-full h-full">
-        {/* Top-down Skoda Octavia silhouette */}
-        <defs>
-          <linearGradient id="bodyGrad" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="#1a2a44" />
-            <stop offset="50%" stopColor="#243b5c" />
-            <stop offset="100%" stopColor="#1a2a44" />
-          </linearGradient>
-        </defs>
-        {/* Wheels */}
-        <rect x="6" y="30" width="6" height="14" rx="2" fill="#0a0f18" />
-        <rect x="88" y="30" width="6" height="14" rx="2" fill="#0a0f18" />
-        <rect x="6" y="125" width="6" height="14" rx="2" fill="#0a0f18" />
-        <rect x="88" y="125" width="6" height="14" rx="2" fill="#0a0f18" />
-        {/* Body */}
-        <path
-          d="M 22 8
-             C 28 4, 72 4, 78 8
-             L 84 28
-             C 88 40, 88 90, 86 130
-             C 84 150, 78 162, 70 164
-             L 30 164
-             C 22 162, 16 150, 14 130
-             C 12 90, 12 40, 16 28 Z"
-          fill="url(#bodyGrad)"
-          stroke={SAPPHIRE_GLOW}
-          strokeWidth="0.6"
-        />
-        {/* Windshield */}
-        <path
-          d="M 24 28 L 76 28 L 80 52 L 20 52 Z"
-          fill="#0a1424"
-          stroke={SAPPHIRE_GLOW}
-          strokeWidth="0.4"
-          opacity="0.85"
-        />
-        {/* Roof */}
-        <path
-          d="M 22 52 L 78 52 L 78 110 L 22 110 Z"
-          fill="#162538"
-          stroke={SAPPHIRE_GLOW}
-          strokeWidth="0.4"
-          opacity="0.7"
-        />
-        {/* Rear window */}
-        <path
-          d="M 22 110 L 78 110 L 80 132 L 20 132 Z"
-          fill="#0a1424"
-          stroke={SAPPHIRE_GLOW}
-          strokeWidth="0.4"
-          opacity="0.85"
-        />
-        {/* Hood line */}
-        <line x1="20" y1="22" x2="80" y2="22" stroke={SAPPHIRE_GLOW} strokeWidth="0.3" opacity="0.5" />
-        {/* Logo */}
-        <text
-          x="50"
-          y="84"
-          textAnchor="middle"
-          fill={SAPPHIRE_GLOW}
-          fontSize="6"
-          fontFamily="ui-monospace, monospace"
-          fontWeight="700"
-          opacity="0.4"
-          letterSpacing="2"
-        >
-          SKODA
-        </text>
-        <text
-          x="50"
-          y="92"
-          textAnchor="middle"
-          fill={SAPPHIRE_GLOW}
-          fontSize="4"
-          fontFamily="ui-monospace, monospace"
-          opacity="0.3"
-          letterSpacing="2"
-        >
-          OCTAVIA A5
-        </text>
-      </svg>
-
-      {/* Node dots */}
-      {nodes.map((n) => {
-        const c = statusColor(n.status);
-        return (
-          <button
-            key={n.node.key}
-            onClick={() => onPick(n)}
-            data-testid={`schematic-${n.node.key}`}
-            className="absolute -translate-x-1/2 -translate-y-1/2 active:scale-90 transition-transform"
-            style={{ left: `${n.node.x}%`, top: `${n.node.y}%` }}
-          >
-            <span
-              className="block w-5 h-5 rounded-full"
-              style={{
-                backgroundColor: c,
-                boxShadow: `0 0 12px ${c}, 0 0 0 3px ${c}33`,
-              }}
-            />
-            <motion.span
-              className="absolute inset-0 rounded-full"
-              style={{ border: `1.5px solid ${c}` }}
-              animate={{ scale: [1, 1.8, 2.4], opacity: [0.7, 0.2, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function NodeSheet({ status, onClose }: { status: NodeStatus | null; onClose: () => void }) {
+  const open = !!hotspot && !!status;
+  const color = status?.color || "#64748b";
+  const Icon = hotspot ? NODE_ICONS[hotspot.key] || Wrench : CarIcon;
   return (
     <AnimatePresence>
-      {status && (
+      {open && hotspot && status && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -334,31 +246,30 @@ function NodeSheet({ status, onClose }: { status: NodeStatus | null; onClose: ()
             exit={{ y: 60 }}
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-[430px] bg-background border-t rounded-t-3xl p-6"
-            style={{ borderColor: statusColor(status.status) }}
+            style={{ borderColor: color }}
+            data-testid="node-sheet"
           >
             <div className="flex items-start justify-between mb-4 gap-3">
               <div className="flex items-center gap-3">
                 <div
                   className="w-11 h-11 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: `${statusColor(status.status)}22` }}
+                  style={{ backgroundColor: `${color}22` }}
                 >
-                  <status.node.icon size={20} style={{ color: statusColor(status.status) }} />
+                  <Icon size={20} style={{ color }} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold tracking-tight">{status.node.label}</h3>
+                  <h3 className="text-base font-bold tracking-tight">{hotspot.label}</h3>
                   <p
                     className="text-[11px] font-mono mt-0.5"
-                    style={{ color: statusColor(status.status) }}
+                    style={{ color }}
                   >
-                    {status.remainingKm == null
-                      ? "Нет данных"
-                      : status.remainingKm <= 0
-                        ? `Просрочено · ${formatMileage(-status.remainingKm)} км`
-                        : status.status === "danger"
-                          ? `Срочно · осталось ${formatMileage(status.remainingKm)} км`
-                          : status.status === "warn"
-                            ? `Скоро · осталось ${formatMileage(status.remainingKm)} км`
-                            : `Норма · осталось ${formatMileage(status.remainingKm)} км`}
+                    {defect
+                      ? `${defect.severity === "critical" ? "Срочно" : "Внимание"} · износ ${defect.wearPercent}%`
+                      : status.remainingKm == null
+                        ? "Нет данных"
+                        : status.remainingKm <= 0
+                          ? `Просрочено · ${formatMileage(-status.remainingKm)} км`
+                          : `Осталось ${formatMileage(status.remainingKm)} км`}
                   </p>
                 </div>
               </div>
@@ -369,10 +280,44 @@ function NodeSheet({ status, onClose }: { status: NodeStatus | null; onClose: ()
                 <X size={14} />
               </button>
             </div>
-            <div className="rounded-xl p-3 text-[12px] text-muted-foreground border border-white/10 bg-white/5 flex items-start gap-2">
+
+            {defect && (
+              <div
+                className="rounded-xl p-3 mb-3 border"
+                style={{ borderColor: `${color}66`, backgroundColor: `${color}10` }}
+              >
+                <div className="flex items-start gap-2">
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color }} />
+                  <div className="flex-1">
+                    <div className="text-xs font-bold mb-0.5" style={{ color }}>
+                      {defect.description}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground leading-snug">
+                      {defect.recommendation}
+                    </div>
+                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground/70 mt-2 font-mono">
+                      {defect.createdByOrg || "ОНИКС-СЕРВИС"} · {defect.createdBy}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-xl p-3 text-[12px] text-muted-foreground border border-white/10 bg-white/5 flex items-start gap-2 mb-3">
               <Wrench size={14} className="shrink-0 mt-0.5" style={{ color: SAPPHIRE_GLOW }} />
-              <span>{status.node.rec}</span>
+              <span>{hotspot.recommendation}</span>
             </div>
+
+            <Link href="/parts">
+              <button
+                className="w-full text-white rounded-2xl py-3 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+                style={{ backgroundColor: SAPPHIRE, boxShadow: `0 0 16px ${SAPPHIRE_GLOW}55` }}
+                data-testid="order-part-btn"
+              >
+                <ShoppingCart size={16} />
+                Заказать запчасть
+              </button>
+            </Link>
           </motion.div>
         </motion.div>
       )}
