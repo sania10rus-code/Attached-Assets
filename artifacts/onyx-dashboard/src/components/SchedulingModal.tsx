@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { CalendarCheck, Check, X } from "lucide-react";
+import { CalendarCheck, Check, X, MapPin, Phone } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -8,7 +8,8 @@ import {
   SheetDescription,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { addAppointment, loadAppData } from "@/lib/storage";
+import { addAppointment, loadAppData, setSelectedSto } from "@/lib/storage";
+import { STO_LIST } from "@/lib/catalog";
 
 type Props = {
   open: boolean;
@@ -32,12 +33,12 @@ function nextDays(n: number): Date[] {
   return out;
 }
 
-function toIso(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+const toIso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default function SchedulingModal({ open, onOpenChange, workName }: Props) {
   const days = useMemo(() => nextDays(14), []);
+  const initial = loadAppData();
+  const [stoId, setStoId] = useState<string>(initial.selectedStoId);
   const [date, setDate] = useState<string | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -46,6 +47,7 @@ export default function SchedulingModal({ open, onOpenChange, workName }: Props)
     setDate(null);
     setSlot(null);
     setSubmitted(false);
+    setStoId(loadAppData().selectedStoId);
   };
 
   const handleClose = (v: boolean) => {
@@ -56,15 +58,20 @@ export default function SchedulingModal({ open, onOpenChange, workName }: Props)
   const onConfirm = () => {
     if (!date || !slot) return;
     const cur = loadAppData();
+    setSelectedSto(stoId);
     addAppointment({
       id: String(Math.floor(Math.random() * 90000) + 10000),
       workName,
       date,
       slot,
       ownerName: cur.ownerName,
+      ownerPhone: cur.ownerPhone,
       carModel: `${cur.carModel} ${cur.carYear}`,
+      carVin: cur.carVin,
+      carPlate: cur.carPlate,
       mileage: Math.floor(cur.telemetry.mileage),
       status: "Ожидает",
+      stoId,
       createdAt: new Date().toISOString(),
     });
     setSubmitted(true);
@@ -74,7 +81,7 @@ export default function SchedulingModal({ open, onOpenChange, workName }: Props)
     <Sheet open={open} onOpenChange={handleClose}>
       <SheetContent
         side="bottom"
-        className="bg-background border-white/10 rounded-t-3xl max-h-[90vh] overflow-y-auto"
+        className="bg-background border-white/10 rounded-t-3xl max-h-[92vh] overflow-y-auto"
       >
         <SheetHeader className="text-left">
           <SheetTitle className="text-xl tracking-tight flex items-center gap-2">
@@ -96,6 +103,47 @@ export default function SchedulingModal({ open, onOpenChange, workName }: Props)
 
         {!submitted && (
           <>
+            <div className="px-4 mt-4">
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-medium">
+                Сервисный центр
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {STO_LIST.map((s) => {
+                  const active = s.id === stoId;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setStoId(s.id)}
+                      className={`text-left rounded-2xl p-3 border transition-colors ${
+                        active
+                          ? "bg-primary/10 border-primary/50"
+                          : "bg-black/30 border-white/10 hover:border-white/20"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className={`text-xs font-bold ${active ? "text-primary" : ""}`}>
+                          {s.shortName}
+                        </span>
+                        {active && (
+                          <span className="w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                            <Check size={10} className="text-primary-foreground" />
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground flex items-start gap-1 mb-0.5">
+                        <MapPin size={10} className="mt-0.5 shrink-0" />
+                        <span className="leading-snug">{s.address}</span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground flex items-center gap-1 font-mono">
+                        <Phone size={10} />
+                        {s.phone}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="px-4 mt-4">
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-medium">
                 Дата

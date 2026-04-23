@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { FileText, Download, Phone, MapPin, Clock, CreditCard, Check } from "lucide-react";
-import { formatRub, formatDateRu, markOrderPaid } from "@/lib/storage";
+import { FileText, Download, Phone, MapPin, Clock, Check, Hourglass } from "lucide-react";
+import { formatRub, formatDateRu } from "@/lib/storage";
 import { useAppData } from "@/hooks/useAppData";
 
 const pastOrders = [
@@ -102,21 +102,15 @@ export default function Orders() {
           )}
 
           {unpaid ? (
-            <button
-              onClick={() => markOrderPaid(order.id)}
-              className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
-            >
-              <CreditCard size={16} />
-              Я оплатил
-            </button>
+            <div className="w-full bg-amber-400/10 border border-amber-400/30 text-amber-400 rounded-2xl py-3 text-xs font-semibold flex items-center justify-center gap-2 text-center px-3 leading-snug">
+              <Hourglass size={14} />
+              Ожидает подтверждения оплаты механиком
+            </div>
           ) : paid ? (
-            <button
-              disabled
-              className="w-full bg-green-500/15 border border-green-500/30 text-green-500 rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2"
-            >
+            <div className="w-full bg-green-500/15 border border-green-500/30 text-green-500 rounded-2xl py-3 text-sm font-semibold flex items-center justify-center gap-2">
               <Check size={16} />
-              Оплачен
-            </button>
+              Оплачено{order.paidAmount != null ? ` · ${formatRub(order.paidAmount)}` : ""}
+            </div>
           ) : (
             <button
               onClick={() => {

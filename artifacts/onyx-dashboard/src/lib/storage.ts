@@ -53,6 +53,8 @@ export type Order = {
   items: OrderItem[];
   total: number;
   paid?: boolean;
+  paidAmount?: number;
+  paidAt?: string;
   createdBy?: "owner" | "mechanic";
   comment?: string;
 };
@@ -65,17 +67,26 @@ export type Appointment = {
   date: string;
   slot: string;
   ownerName: string;
+  ownerPhone: string;
   carModel: string;
+  carVin: string;
+  carPlate: string;
   mileage: number;
   status: AppointmentStatus;
+  stoId: string;
   mechanicComment?: string;
+  orderId?: string;
   createdAt: string;
 };
 
 export type AppData = {
   carModel: string;
   carYear: number;
+  carVin: string;
+  carPlate: string;
   ownerName: string;
+  ownerPhone: string;
+  selectedStoId: string;
   telemetry: Telemetry;
   todayDate: string;
   todayDistance: number;
@@ -91,7 +102,11 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 export const defaultData: AppData = {
   carModel: "Skoda Octavia A5",
   carYear: 2007,
+  carVin: "TMBHE61U982111234",
+  carPlate: "А123ВС 178",
   ownerName: "Иван Петров",
+  ownerPhone: "+7 (921) 123-45-67",
+  selectedStoId: "north",
   telemetry: {
     mileage: 102345,
     temperature: 90,
@@ -243,14 +258,29 @@ export function addOrder(order: Order): AppData {
   return next;
 }
 
-export function markOrderPaid(orderId: string): AppData {
+export function markOrderPaid(orderId: string, amount?: number): AppData {
   const current = loadAppData();
   const next: AppData = {
     ...current,
     orders: current.orders.map((o) =>
-      o.id === orderId ? { ...o, paid: true, status: "Оплачен" } : o,
+      o.id === orderId
+        ? {
+            ...o,
+            paid: true,
+            status: "Оплачено",
+            paidAmount: amount ?? o.total,
+            paidAt: new Date().toISOString(),
+          }
+        : o,
     ),
   };
+  saveAppData(next);
+  return next;
+}
+
+export function setSelectedSto(stoId: string): AppData {
+  const current = loadAppData();
+  const next: AppData = { ...current, selectedStoId: stoId };
   saveAppData(next);
   return next;
 }
