@@ -14,10 +14,12 @@ import {
 import { formatMileage, formatRub, formatDateRu } from "@/lib/storage";
 import { useAppData } from "@/hooks/useAppData";
 import OBDEmulator from "@/components/OBDEmulator";
+import { useTranslation } from "@/i18n";
 
 export default function Home() {
   const data = useAppData();
   const { logout } = useAuth();
+  const { t } = useTranslation();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [oilOpen, setOilOpen] = useState(false);
 
@@ -34,11 +36,11 @@ export default function Home() {
   const unpaidTotal = unpaid.reduce((s, o) => s + o.total, 0);
 
   const statCards = [
-    { id: "mileage", label: "Пробег", value: formatMileage(displayMileage), unit: "км", icon: Settings2 },
-    { id: "today", label: "Сегодня", value: todayDistance.toFixed(1), unit: "км", icon: Route },
-    { id: "errors", label: "Ошибки", value: String(telemetry.errors), unit: "", icon: Activity, success: telemetry.errors === 0 },
-    { id: "fuel", label: "Заправка", value: String(telemetry.fuelDays), unit: "дней", icon: Fuel },
-    { id: "temp", label: "Температура", value: String(telemetry.temperature), unit: "°C", icon: Thermometer },
+    { id: "mileage", label: t("home.stats.mileage"), value: formatMileage(displayMileage), unit: t("common.km"), icon: Settings2 },
+    { id: "today", label: t("home.stats.today"), value: todayDistance.toFixed(1), unit: t("common.km"), icon: Route },
+    { id: "errors", label: t("home.stats.errors"), value: String(telemetry.errors), unit: "", icon: Activity, success: telemetry.errors === 0 },
+    { id: "fuel", label: t("home.stats.fuel"), value: String(telemetry.fuelDays), unit: t("common.days"), icon: Fuel },
+    { id: "temp", label: t("home.stats.temp"), value: String(telemetry.temperature), unit: "°C", icon: Thermometer },
   ];
 
   return (
@@ -54,7 +56,7 @@ export default function Home() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-glow">{carModel}</h1>
             <p className="text-muted-foreground text-sm tracking-wider font-mono mt-1">
-              ОНИКС ТЕЛЕМЕТРИЯ · {carYear}
+              {t("home.telemetryLabel", { year: carYear })}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -62,7 +64,7 @@ export default function Home() {
             <button
               onClick={logout}
               className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-muted-foreground"
-              title="Выйти"
+              title={t("home.logoutTitle")}
             >
               <LogOut size={14} />
             </button>
@@ -79,7 +81,7 @@ export default function Home() {
             >
               <AlertTriangle size={16} className="text-amber-400 shrink-0 mt-0.5" />
               <div className="text-xs text-amber-400 font-medium leading-snug">
-                Обнаружены расхождения в истории пробега. Проверьте раздел История.
+                {t("home.discrepancyBanner")}
               </div>
             </motion.div>
           </Link>
@@ -95,7 +97,7 @@ export default function Home() {
               <div className="flex items-center gap-2 text-xs">
                 <AlertCircle size={14} className="text-primary" />
                 <span className="text-primary font-semibold">
-                  Не оплачено: {unpaid.length} наряд(а)
+                  {t("home.unpaid", { count: unpaid.length })}
                 </span>
               </div>
               <span className="font-mono text-sm font-bold text-primary text-glow">
@@ -147,7 +149,7 @@ export default function Home() {
           onClick={() => setDetailsOpen(true)}
           className="w-full glass-card hover:bg-white/5 active:bg-white/10 transition-colors py-4 rounded-2xl flex justify-center items-center gap-2 text-sm font-medium"
         >
-          <span>Подробнее</span>
+          <span>{t("home.details")}</span>
           <ChevronRight size={16} className="text-muted-foreground" />
         </button>
 
@@ -164,8 +166,8 @@ export default function Home() {
             <Droplet size={20} className="text-primary" />
           </div>
           <div className="flex-1">
-            <h3 className="text-sm font-semibold">Замена масла</h3>
-            <p className="text-xs text-primary font-mono mt-1">через {formatMileage(kmToOil)} км</p>
+            <h3 className="text-sm font-semibold">{t("home.oilTitle")}</h3>
+            <p className="text-xs text-primary font-mono mt-1">{t("home.oilIn", { km: formatMileage(kmToOil) })}</p>
           </div>
           <ChevronRight size={20} className="text-muted-foreground shrink-0" />
         </motion.div>
@@ -174,8 +176,8 @@ export default function Home() {
         {lastOrder && (
           <div className="mt-2">
             <div className="flex items-center justify-between mb-3 px-1">
-              <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Последний заказ-наряд</h2>
-              <Link href="/orders" className="text-xs text-primary font-medium">Все</Link>
+              <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{t("home.lastOrder")}</h2>
+              <Link href="/orders" className="text-xs text-primary font-medium">{t("common.all")}</Link>
             </div>
             <div className="glass-card rounded-2xl p-5 border-white/5">
               <div className="flex justify-between items-start mb-4 border-b border-white/10 pb-4">
@@ -199,13 +201,13 @@ export default function Home() {
                 ))}
                 {lastOrder.items.length > 3 && (
                   <div className="text-[11px] text-muted-foreground font-mono">
-                    + ещё {lastOrder.items.length - 3} позиц.
+                    {t("home.morePositions", { n: lastOrder.items.length - 3 })}
                   </div>
                 )}
               </div>
 
               <div className="flex justify-between items-center pt-4 border-t border-white/10">
-                <span className="text-sm font-bold uppercase tracking-wider">Итого</span>
+                <span className="text-sm font-bold uppercase tracking-wider">{t("common.total")}</span>
                 <span className="text-lg font-bold font-mono">{formatRub(lastOrder.total)}</span>
               </div>
             </div>
@@ -217,20 +219,20 @@ export default function Home() {
       <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
         <SheetContent side="bottom" className="bg-background border-white/10 rounded-t-3xl max-h-[85vh] overflow-y-auto">
           <SheetHeader className="text-left">
-            <SheetTitle className="text-xl tracking-tight">Расширенная диагностика</SheetTitle>
+            <SheetTitle className="text-xl tracking-tight">{t("home.advancedDiag")}</SheetTitle>
             <SheetDescription className="text-muted-foreground">
-              Показатели бортовых датчиков · {carModel}
+              {t("home.advancedSubtitle", { model: carModel })}
             </SheetDescription>
           </SheetHeader>
 
           <div className="grid grid-cols-2 gap-3 mt-4 px-4">
             {[
-              { icon: Gauge, label: "Обороты", value: telemetry.rpm > 0 ? String(telemetry.rpm) : "820", unit: "об/мин" },
-              { icon: Thermometer, label: "Охл. жидкость", value: String(telemetry.temperature), unit: "°C" },
-              { icon: Droplet, label: "Давл. масла", value: "3.4", unit: "бар" },
-              { icon: Activity, label: "Напряжение АКБ", value: telemetry.batteryVoltage.toFixed(1), unit: "В" },
-              { icon: Fuel, label: "Расход", value: "8.2", unit: "л/100" },
-              { icon: LineChart, label: "Нагрузка ДВС", value: "23", unit: "%" },
+              { icon: Gauge, label: t("home.adv.rpm"), value: telemetry.rpm > 0 ? String(telemetry.rpm) : "820", unit: t("common.rpm") },
+              { icon: Thermometer, label: t("home.adv.coolant"), value: String(telemetry.temperature), unit: "°C" },
+              { icon: Droplet, label: t("home.adv.oilP"), value: "3.4", unit: t("home.adv.bar") },
+              { icon: Activity, label: t("home.adv.battery"), value: telemetry.batteryVoltage.toFixed(1), unit: t("home.adv.volts") },
+              { icon: Fuel, label: t("home.adv.consumption"), value: "8.2", unit: t("home.adv.lph") },
+              { icon: LineChart, label: t("home.adv.load"), value: "23", unit: "%" },
             ].map((m) => (
               <div key={m.label} className="glass-card p-4 rounded-2xl">
                 <div className="flex items-center gap-2 mb-2">
@@ -248,7 +250,7 @@ export default function Home() {
           <div className="px-4 mt-5 mb-4">
             <div className="glass-card rounded-2xl p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs uppercase tracking-widest text-muted-foreground">Темп. за сутки</span>
+                <span className="text-xs uppercase tracking-widest text-muted-foreground">{t("home.tempLast24")}</span>
                 <span className="text-xs text-primary font-mono">{telemetry.temperature} °C</span>
               </div>
               <div className="flex items-end gap-1 h-20">
@@ -271,26 +273,26 @@ export default function Home() {
           <SheetHeader className="text-left">
             <SheetTitle className="text-xl tracking-tight flex items-center gap-2">
               <Droplet size={18} className="text-primary" />
-              Замена масла
+              {t("home.oilTitle")}
             </SheetTitle>
             <SheetDescription className="text-muted-foreground">
-              Рекомендована через <span className="text-primary font-mono">{formatMileage(kmToOil)} км</span>.
+              {t("home.oil.recommended")} <span className="text-primary font-mono">{formatMileage(kmToOil)} {t("common.km")}</span>.
             </SheetDescription>
           </SheetHeader>
 
           <div className="px-4 mt-4 space-y-3">
             <div className="glass-card rounded-2xl p-4 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Тип масла</span>
+                <span className="text-muted-foreground">{t("home.oil.type")}</span>
                 <span className="font-mono">Castrol Edge 5W-30</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Объём</span>
-                <span className="font-mono">4.5 л</span>
+                <span className="text-muted-foreground">{t("home.oil.volume")}</span>
+                <span className="font-mono">4.5 {t("common.liters")}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Прошлая замена</span>
-                <span className="font-mono">40 000 км · 01.01.2017</span>
+                <span className="text-muted-foreground">{t("home.oil.last")}</span>
+                <span className="font-mono">40 000 {t("common.km")} · 01.01.2017</span>
               </div>
             </div>
           </div>
@@ -301,13 +303,13 @@ export default function Home() {
               className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
             >
               <CalendarCheck size={16} />
-              Записаться в ОНИКС-СЕРВИС
+              {t("home.oil.book")}
             </button>
             <button
               onClick={() => setOilOpen(false)}
               className="w-full glass-card rounded-2xl py-4 text-sm font-medium text-muted-foreground"
             >
-              Напомнить позже
+              {t("home.oil.later")}
             </button>
           </SheetFooter>
         </SheetContent>

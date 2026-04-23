@@ -4,14 +4,15 @@ import { X, AlertTriangle, Check } from "lucide-react";
 import type { CarHotspotKey } from "@/lib/cars";
 import { findCarByVin } from "@/lib/cars";
 import { addDefectByVin, type DefectSeverity } from "@/lib/storage";
+import { useTranslation } from "@/i18n";
 
-const NODE_OPTIONS: { key: CarHotspotKey; label: string }[] = [
-  { key: "engine", label: "Двигатель / Масло" },
-  { key: "front-wheels", label: "Передние колёса / тормоза" },
-  { key: "rear-wheels", label: "Задние колёса / тормоза" },
-  { key: "grille", label: "Воздушный фильтр" },
-  { key: "underbody", label: "Ремень ГРМ / днище" },
-  { key: "cabin", label: "Салонный фильтр" },
+const NODE_KEYS: { key: CarHotspotKey; labelKey: string }[] = [
+  { key: "engine", labelKey: "defect.node.engine" },
+  { key: "front-wheels", labelKey: "defect.node.front" },
+  { key: "rear-wheels", labelKey: "defect.node.rear" },
+  { key: "grille", labelKey: "defect.node.grille" },
+  { key: "underbody", labelKey: "defect.node.under" },
+  { key: "cabin", labelKey: "defect.node.cabin" },
 ];
 
 export default function DefectForm({
@@ -29,6 +30,8 @@ export default function DefectForm({
   mechanicOrg?: string;
   onCreated?: () => void;
 }) {
+  const { t } = useTranslation();
+  const NODE_OPTIONS = NODE_KEYS.map((n) => ({ key: n.key, label: t(n.labelKey) }));
   const [nodeKey, setNodeKey] = useState<CarHotspotKey>("engine");
   const [severity, setSeverity] = useState<DefectSeverity>("warn");
   const [wear, setWear] = useState(50);
@@ -60,10 +63,10 @@ export default function DefectForm({
       nodeLabel,
       severity,
       wearPercent: wear,
-      description: description.trim() || `${nodeLabel} — износ ${wear}%`,
+      description: description.trim() || t("defect.fallback", { label: nodeLabel, pct: wear }),
       recommendation:
         recommendation.trim() ||
-        (severity === "critical" ? "Срочная замена." : "Рекомендована замена в ближайшее ТО."),
+        (severity === "critical" ? t("defect.recCritical") : t("defect.recDefault")),
       createdBy: mechanicName,
       createdByOrg: mechanicOrg,
     });
@@ -94,7 +97,7 @@ export default function DefectForm({
               <div>
                 <h3 className="text-lg font-bold tracking-tight flex items-center gap-2">
                   <AlertTriangle size={18} className="text-amber-400" />
-                  Обнаружена неисправность
+                  {t("defect.title")}
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-1">
                   VIN {vin}
@@ -111,7 +114,7 @@ export default function DefectForm({
             <div className="space-y-4">
               <div>
                 <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium block mb-2">
-                  Узел
+                  {t("defect.node")}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {NODE_OPTIONS.map((n) => (
@@ -133,7 +136,7 @@ export default function DefectForm({
 
               <div>
                 <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium block mb-2">
-                  Степень износа: <span className="text-white font-mono">{wear}%</span>
+                  {t("defect.wear")}: <span className="text-white font-mono">{wear}%</span>
                 </label>
                 <input
                   type="range"
@@ -154,7 +157,7 @@ export default function DefectForm({
 
               <div>
                 <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium block mb-2">
-                  Критичность
+                  {t("defect.crit")}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -165,7 +168,7 @@ export default function DefectForm({
                         : "border-white/10 bg-white/5 text-muted-foreground"
                     }`}
                   >
-                    🟡 Требует внимания
+                    {t("defect.warn")}
                   </button>
                   <button
                     onClick={() => setSeverity("critical")}
@@ -175,20 +178,20 @@ export default function DefectForm({
                         : "border-white/10 bg-white/5 text-muted-foreground"
                     }`}
                   >
-                    🔴 Срочно
+                    {t("defect.urgent")}
                   </button>
                 </div>
               </div>
 
               <div>
                 <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium block mb-2">
-                  Описание
+                  {t("defect.desc")}
                 </label>
                 <textarea
                   rows={2}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="например: Передние амортизаторы — стук при проезде неровностей"
+                  placeholder={t("defect.descPh")}
                   className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:border-amber-400/50 resize-none"
                   data-testid="defect-description"
                 />
@@ -196,13 +199,13 @@ export default function DefectForm({
 
               <div>
                 <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium block mb-2">
-                  Рекомендация
+                  {t("defect.rec")}
                 </label>
                 <textarea
                   rows={2}
                   value={recommendation}
                   onChange={(e) => setRecommendation(e.target.value)}
-                  placeholder="например: Требуется замена передних амортизаторов KYB"
+                  placeholder={t("defect.recPh")}
                   className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:border-amber-400/50 resize-none"
                   data-testid="defect-recommendation"
                 />
@@ -215,7 +218,7 @@ export default function DefectForm({
               data-testid="defect-submit"
             >
               <Check size={16} />
-              Зафиксировать неисправность
+              {t("defect.submit")}
             </button>
           </motion.div>
         </motion.div>

@@ -10,6 +10,8 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { addOrder, formatRub, type OrderItem } from "@/lib/storage";
+import { useAppData } from "@/hooks/useAppData";
+import { useTranslation } from "@/i18n";
 
 type Part = {
   id: string;
@@ -31,6 +33,8 @@ const catalog: Part[] = [
 ];
 
 export default function Parts() {
+  const { t } = useTranslation();
+  const { carModel } = useAppData();
   const [selected, setSelected] = useState<Part | null>(null);
   const [confirmed, setConfirmed] = useState(false);
 
@@ -64,9 +68,9 @@ export default function Parts() {
       transition={{ duration: 0.3 }}
       className="p-6 pt-12 min-h-full"
     >
-      <h1 className="text-2xl font-bold mb-1">Запчасти</h1>
+      <h1 className="text-2xl font-bold mb-1">{t("parts.title")}</h1>
       <p className="text-xs text-muted-foreground uppercase tracking-widest mb-6">
-        Каталог · Skoda Octavia A5
+        {t("parts.subtitle", { model: carModel })}
       </p>
 
       <div className="space-y-3">
@@ -105,7 +109,7 @@ export default function Parts() {
                 className="w-full bg-primary/15 text-primary border border-primary/30 rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
               >
                 <ShoppingCart size={14} />
-                Заказать
+                {t("parts.order")}
               </button>
             </motion.div>
           );
@@ -117,11 +121,11 @@ export default function Parts() {
           <SheetHeader className="text-left">
             <SheetTitle className="text-xl tracking-tight flex items-center gap-2">
               {confirmed ? <Check size={18} className="text-green-500" /> : <ShoppingCart size={18} className="text-primary" />}
-              {confirmed ? "Заказ оформлен" : "Подтверждение заказа"}
+              {confirmed ? t("parts.placedTitle") : t("parts.confirmTitle")}
             </SheetTitle>
             <SheetDescription className="text-muted-foreground">
               {confirmed
-                ? "Заказ добавлен в раздел «Заказ-наряды»."
+                ? t("parts.placedDesc")
                 : selected
                   ? `${selected.name} (${selected.brand})`
                   : ""}
@@ -132,15 +136,15 @@ export default function Parts() {
             <div className="px-4 mt-4">
               <div className="glass-card rounded-2xl p-4 space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Количество</span>
-                  <span className="font-mono">{selected.qty} шт.</span>
+                  <span className="text-muted-foreground">{t("parts.qty")}</span>
+                  <span className="font-mono">{selected.qty} {t("common.pieces")}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Цена</span>
+                  <span className="text-muted-foreground">{t("parts.price")}</span>
                   <span className="font-mono">{formatRub(selected.price)}</span>
                 </div>
                 <div className="flex justify-between border-t border-white/10 pt-2 mt-2">
-                  <span className="font-bold uppercase tracking-wider text-xs">Итого</span>
+                  <span className="font-bold uppercase tracking-wider text-xs">{t("common.total")}</span>
                   <span className="font-mono font-bold">{formatRub(selected.price * selected.qty)}</span>
                 </div>
               </div>
@@ -153,13 +157,13 @@ export default function Parts() {
                 onClick={onConfirm}
                 className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold active:scale-[.98] transition-transform"
               >
-                Подтвердить заказ
+                {t("parts.confirm")}
               </button>
               <button
                 onClick={() => setSelected(null)}
                 className="w-full glass-card rounded-2xl py-4 text-sm font-medium text-muted-foreground"
               >
-                Отмена
+                {t("common.cancel")}
               </button>
             </SheetFooter>
           )}

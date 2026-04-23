@@ -4,10 +4,11 @@ import { Droplet, Disc3, Zap, Wrench, Filter, AlertTriangle, CalendarCheck } fro
 import { formatMileage, formatDateRu, type Reminder, type Urgency } from "@/lib/storage";
 import { useAppData } from "@/hooks/useAppData";
 import SchedulingModal from "@/components/SchedulingModal";
+import { useTranslation } from "@/i18n";
 
-const urgencyMeta: Record<Urgency, { label: string; chip: string; bar: string; iconWrap: string; icon: string; cardBorder: string; due: string }> = {
+const urgencyMeta: Record<Urgency, { labelKey: string; chip: string; bar: string; iconWrap: string; icon: string; cardBorder: string; due: string }> = {
   high: {
-    label: "Срочно",
+    labelKey: "reminders.urgency.high",
     chip: "bg-primary/15 text-primary border-primary/30",
     bar: "bg-primary",
     iconWrap: "bg-primary/20",
@@ -16,7 +17,7 @@ const urgencyMeta: Record<Urgency, { label: string; chip: string; bar: string; i
     due: "text-primary text-glow",
   },
   medium: {
-    label: "Скоро",
+    labelKey: "reminders.urgency.medium",
     chip: "bg-amber-400/15 text-amber-400 border-amber-400/30",
     bar: "bg-amber-400",
     iconWrap: "bg-amber-400/15",
@@ -25,7 +26,7 @@ const urgencyMeta: Record<Urgency, { label: string; chip: string; bar: string; i
     due: "text-amber-400",
   },
   low: {
-    label: "Запланировано",
+    labelKey: "reminders.urgency.low",
     chip: "bg-white/10 text-muted-foreground border-white/10",
     bar: "bg-white/40",
     iconWrap: "bg-white/10",
@@ -46,14 +47,14 @@ function pickIcon(text: string) {
   return Wrench;
 }
 
-function dueText(r: Reminder, mileage: number): string {
+function dueText(r: Reminder, mileage: number, t: (k: string, p?: Record<string, string | number>) => string): string {
   if (r.dueMileage != null) {
     const km = r.dueMileage - mileage;
-    if (km <= 0) return "просрочено";
-    return `через ${formatMileage(km)} км`;
+    if (km <= 0) return t("reminders.overdue");
+    return t("reminders.inKm", { km: formatMileage(km) });
   }
   if (r.dueDate) {
-    return `до ${formatDateRu(r.dueDate)}`;
+    return t("reminders.until", { date: formatDateRu(r.dueDate) });
   }
   return "";
 }
@@ -79,6 +80,7 @@ function progressFor(r: Reminder, mileage: number): number {
 
 export default function Reminders() {
   const data = useAppData();
+  const { t } = useTranslation();
   const [scheduleFor, setScheduleFor] = useState<string | null>(null);
   const reminders = useMemo<Reminder[]>(() => {
     const order: Record<Urgency, number> = { high: 0, medium: 1, low: 2 };
@@ -103,14 +105,14 @@ export default function Reminders() {
       transition={{ duration: 0.3 }}
       className="p-6 pt-12 min-h-full"
     >
-      <h1 className="text-2xl font-bold mb-1">Напоминания</h1>
-      <p className="text-xs text-muted-foreground uppercase tracking-widest mb-6">Регламентные работы</p>
+      <h1 className="text-2xl font-bold mb-1">{t("reminders.title")}</h1>
+      <p className="text-xs text-muted-foreground uppercase tracking-widest mb-6">{t("reminders.subtitle")}</p>
 
       <div className="space-y-3">
         {reminders.map((r, i) => {
           const m = urgencyMeta[r.urgency];
           const Icon = pickIcon(r.text);
-          const due = dueText(r, currentMileage);
+          const due = dueText(r, currentMileage, t);
           const pct = progressFor(r, currentMileage);
           return (
             <motion.div
@@ -129,18 +131,18 @@ export default function Reminders() {
                   <div className="flex items-start justify-between gap-2 mb-0.5">
                     <h3 className="font-semibold text-sm leading-tight">{r.text}</h3>
                     <span className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border ${m.chip} shrink-0`}>
-                      {m.label}
+                      {t(m.labelKey)}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground leading-snug">
                     {r.dueMileage != null
-                      ? `Регламент: каждые ${formatMileage(r.interval)} км`
-                      : `Регламент: каждые ${r.interval} года`}
+                      ? t("reminders.regKm", { km: formatMileage(r.interval) })
+                      : t("reminders.regYears", { n: r.interval })}
                   </p>
 
                   <div className="mt-3">
                     <div className="flex justify-between items-baseline mb-1.5">
-                      <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Остаток ресурса</span>
+                      <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{t("reminders.remaining")}</span>
                       <span className={`text-xs font-mono font-medium ${m.due}`}>{due}</span>
                     </div>
                     <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
@@ -159,7 +161,7 @@ export default function Reminders() {
                       className="mt-3 w-full bg-primary text-primary-foreground rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[.98] transition-transform"
                     >
                       <CalendarCheck size={14} />
-                      Записаться
+                      {t("reminders.book")}
                     </button>
                   )}
                 </div>

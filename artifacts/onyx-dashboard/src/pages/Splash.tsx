@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Zap } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 export default function Splash({ onDone }: { onDone: () => void }) {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setVisible(false), 2000);
-    return () => window.clearTimeout(t);
+    const tm = window.setTimeout(() => setVisible(false), 2000);
+    return () => window.clearTimeout(tm);
   }, []);
 
   return (
@@ -29,7 +31,7 @@ export default function Splash({ onDone }: { onDone: () => void }) {
             <div className="flex items-center gap-3">
               <Zap size={48} className="text-primary" strokeWidth={2.5} fill="currentColor" />
               <span className="text-5xl font-bold tracking-tight text-white text-glow">
-                ОНИКС
+                {t("common.brand")}
               </span>
             </div>
             <motion.p
@@ -38,7 +40,7 @@ export default function Splash({ onDone }: { onDone: () => void }) {
               transition={{ delay: 0.4, duration: 0.5 }}
               className="text-sm text-muted-foreground tracking-wider uppercase font-mono"
             >
-              Цифровой паспорт автомобиля
+              {t("splash.tagline")}
             </motion.p>
           </motion.div>
         </motion.div>

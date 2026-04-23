@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from "framer-motion";
+import { useTranslation } from "@/i18n";
 
 type Stage = "start" | "anim" | "text" | "done";
 
@@ -12,6 +13,7 @@ const SAPPHIRE = "#1a3a5c";
 const SAPPHIRE_GLOW = "#2a5a8a";
 
 export default function Onboarding({ role, onDone }: Props) {
+  const { t } = useTranslation();
   const [stage, setStage] = useState<Stage>("start");
   const rpm = useMotionValue(0);
   const angle = useTransform(rpm, [0, 8000], [-135, 135]);
@@ -59,16 +61,16 @@ export default function Onboarding({ role, onDone }: Props) {
   const lines =
     role === "mechanic"
       ? [
-          "Я ОНИКС — ваша панель управления сервисом.",
-          "Объективная Независимая Интеллектуальная Контрольная Система.",
-          "Я помогу принимать заявки, вести заказ-наряды и хранить историю работ.",
-          "Все автомобили в ОНИКС имеют чистую и неизменяемую историю — это повышает доверие клиентов.",
+          t("onboarding.mech.l1"),
+          t("onboarding.mech.l2"),
+          t("onboarding.mech.l3"),
+          t("onboarding.mech.l4"),
         ]
       : [
-          "Я ОНИКС — ваш персональный автомобильный ассистент.",
-          "Объективная Независимая Интеллектуальная Контрольная Система.",
-          "Я помогу следить за автомобилем, напомню о записи в сервис и сохраню всю историю обслуживания.",
-          "Все автомобили в ОНИКС имеют чистую и неизменяемую историю. Это повышает доверие и упрощает продажу.",
+          t("onboarding.owner.l1"),
+          t("onboarding.owner.l2"),
+          t("onboarding.owner.l3"),
+          t("onboarding.owner.l4"),
         ];
 
   return (
@@ -110,10 +112,10 @@ export default function Onboarding({ role, onDone }: Props) {
                 animate={{ scale: [1, 1.25, 1.5], opacity: [0.7, 0.25, 0] }}
                 transition={{ duration: 1.6, repeat: Infinity, delay: 0.6 }}
               />
-              <span className="relative">Начать</span>
+              <span className="relative">{t("onboarding.start")}</span>
             </button>
             <p className="mt-8 text-[11px] text-muted-foreground/70 uppercase tracking-widest font-mono">
-              {role === "mechanic" ? "Панель механика" : "Цифровой паспорт"}
+              {role === "mechanic" ? t("onboarding.subtitle.mechanic") : t("onboarding.subtitle.owner")}
             </p>
           </motion.div>
         )}
@@ -167,7 +169,7 @@ export default function Onboarding({ role, onDone }: Props) {
                       boxShadow: `0 0 24px ${SAPPHIRE_GLOW}66, inset 0 0 0 1px ${SAPPHIRE_GLOW}`,
                     }}
                   >
-                    Продолжить
+                    {t("onboarding.continue")}
                   </motion.button>
                 </motion.div>
               )}
@@ -267,7 +269,8 @@ function Tachometer({
           <motion.span>{rpmRounded}</motion.span>
         </motion.div>
         <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">
-          об/мин
+          {/* unit label */}
+          rpm
         </span>
       </div>
     </div>

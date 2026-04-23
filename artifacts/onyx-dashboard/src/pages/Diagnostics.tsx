@@ -6,6 +6,7 @@ import { useAppData } from "@/hooks/useAppData";
 import { formatMileage, type Defect } from "@/lib/storage";
 import { findCarByVin, type CarHotspotKey, type CarProfile } from "@/lib/cars";
 import DiagnosticScheme, { type HotspotStatus } from "@/components/DiagnosticScheme";
+import { useTranslation } from "@/i18n";
 
 const SAPPHIRE = "#1a3a5c";
 const SAPPHIRE_GLOW = "#2a5a8a";
@@ -33,6 +34,7 @@ function statusColorFor(remainingKm: number | null, defect?: Defect): string {
 
 export default function Diagnostics() {
   const data = useAppData();
+  const { t } = useTranslation();
   const car: CarProfile = useMemo(() => {
     return (
       findCarByVin(data.carVin) || {
@@ -101,9 +103,9 @@ export default function Diagnostics() {
       transition={{ duration: 0.3 }}
       className="p-6 pt-12 min-h-full"
     >
-      <h1 className="text-2xl font-bold mb-1">Диагностика</h1>
+      <h1 className="text-2xl font-bold mb-1">{t("diag.title")}</h1>
       <p className="text-xs text-muted-foreground uppercase tracking-widest mb-5">
-        {car.model} ({car.year}) · схема узлов
+        {car.model} ({car.year}) · {t("diag.subtitle")}
       </p>
 
       <div
@@ -120,17 +122,17 @@ export default function Diagnostics() {
       </div>
 
       <p className="text-[10px] text-center text-muted-foreground/70 uppercase tracking-widest mb-4 font-mono">
-        Нажмите точку для деталей узла
+        {t("diag.tap")}
       </p>
 
       <div className="grid grid-cols-3 gap-2 mb-5 text-center">
-        <SummaryChip label="Норма" value={counts.ok} color="#22c55e" />
-        <SummaryChip label="Внимание" value={counts.warn} color="#eab308" />
-        <SummaryChip label="Срочно" value={counts.danger} color="#ef4444" />
+        <SummaryChip label={t("diag.ok")} value={counts.ok} color="#22c55e" />
+        <SummaryChip label={t("diag.warn")} value={counts.warn} color="#eab308" />
+        <SummaryChip label={t("diag.danger")} value={counts.danger} color="#ef4444" />
       </div>
 
       <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 px-1">
-        Узлы
+        {t("diag.nodes")}
       </h2>
       <div className="space-y-2">
         {car.hotspots.map((h) => {
@@ -155,12 +157,12 @@ export default function Diagnostics() {
                 <div className="text-sm font-semibold leading-tight">{h.label}</div>
                 <div className="text-[11px] text-muted-foreground font-mono">
                   {defect
-                    ? `${defect.severity === "critical" ? "Срочно" : "Внимание"} · износ ${defect.wearPercent}%`
+                    ? `${defect.severity === "critical" ? t("diag.danger") : t("diag.warn")} · ${t("diag.wearPct", { pct: defect.wearPercent })}`
                     : st.remainingKm == null
-                      ? "нет данных"
+                      ? t("diag.noData")
                       : st.remainingKm <= 0
-                        ? `просрочено ${formatMileage(-st.remainingKm)} км`
-                        : `осталось ${formatMileage(st.remainingKm)} км`}
+                        ? t("diag.overdueKm", { km: formatMileage(-st.remainingKm) })
+                        : t("diag.remainingKm", { km: formatMileage(st.remainingKm) })}
                 </div>
               </div>
               {defect && <AlertTriangle size={14} style={{ color: st.color }} />}
@@ -180,6 +182,7 @@ export default function Diagnostics() {
         status={activeStatus}
         defect={activeDefect}
         onClose={() => setActiveKey(null)}
+        t={t}
       />
     </motion.div>
   );
@@ -206,11 +209,13 @@ function NodeSheet({
   status,
   defect,
   onClose,
+  t,
 }: {
   hotspot?: { key: CarHotspotKey; label: string; recommendation: string; partId: string };
   status: HotspotStatus | null;
   defect: Defect | null | undefined;
   onClose: () => void;
+  t: (k: string, p?: Record<string, string | number>) => string;
 }) {
   const open = !!hotspot && !!status;
   const color = status?.color || "#64748b";
@@ -249,12 +254,12 @@ function NodeSheet({
                     style={{ color }}
                   >
                     {defect
-                      ? `${defect.severity === "critical" ? "Срочно" : "Внимание"} · износ ${defect.wearPercent}%`
+                      ? `${defect.severity === "critical" ? t("diag.danger") : t("diag.warn")} · ${t("diag.wearPct", { pct: defect.wearPercent })}`
                       : status.remainingKm == null
-                        ? "Нет данных"
+                        ? t("diag.noData")
                         : status.remainingKm <= 0
-                          ? `Просрочено · ${formatMileage(-status.remainingKm)} км`
-                          : `Осталось ${formatMileage(status.remainingKm)} км`}
+                          ? t("diag.overdueKmLong", { km: formatMileage(-status.remainingKm) })
+                          : t("diag.remainingKmLong", { km: formatMileage(status.remainingKm) })}
                   </p>
                 </div>
               </div>
@@ -300,7 +305,7 @@ function NodeSheet({
                 data-testid="order-part-btn"
               >
                 <ShoppingCart size={16} />
-                Заказать запчасть
+                {t("diag.orderPart")}
               </button>
             </Link>
           </motion.div>

@@ -1,93 +1,61 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Lightbulb, Snowflake, Sun, Leaf, Flower2, Wrench } from "lucide-react";
+import { useTranslation, getCurrentLocale } from "@/i18n";
 
 const SAPPHIRE = "#1a3a5c";
 const SAPPHIRE_GLOW = "#2a5a8a";
 
 type Season = {
   key: string;
-  title: string;
+  titleKey: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement> & { size?: number }>;
   color: string;
-  items: string[];
+  itemKeys: string[];
 };
 
 const SEASONS: Season[] = [
   {
     key: "spring",
-    title: "Весна",
+    titleKey: "tips.season.spring",
     icon: Flower2,
     color: "#22c55e",
-    items: [
-      "Проверить кондиционер и заправить хладагент",
-      "Заменить щётки стеклоочистителя",
-      "Проверить ходовую после зимы (сайлентблоки, шаровые)",
-      "Промыть днище от реагентов",
-    ],
+    itemKeys: ["tips.spring.1", "tips.spring.2", "tips.spring.3", "tips.spring.4"],
   },
   {
     key: "summer",
-    title: "Лето",
+    titleKey: "tips.season.summer",
     icon: Sun,
     color: "#eab308",
-    items: [
-      "Следить за уровнем и температурой масла",
-      "Проверить давление в шинах при жаре",
-      "Контроль уровня охлаждающей жидкости",
-      "Очистить радиатор от тополиного пуха",
-    ],
+    itemKeys: ["tips.summer.1", "tips.summer.2", "tips.summer.3", "tips.summer.4"],
   },
   {
     key: "autumn",
-    title: "Осень",
+    titleKey: "tips.season.autumn",
     icon: Leaf,
     color: "#f97316",
-    items: [
-      "Сменить резину на зимнюю при +7°C",
-      "Проверить АКБ и клеммы",
-      "Заменить антифриз при необходимости",
-      "Обработать резинки дверей силиконом",
-    ],
+    itemKeys: ["tips.autumn.1", "tips.autumn.2", "tips.autumn.3", "tips.autumn.4"],
   },
   {
     key: "winter",
-    title: "Зима",
+    titleKey: "tips.season.winter",
     icon: Snowflake,
     color: "#38bdf8",
-    items: [
-      "Прогревать двигатель 1–2 минуты перед поездкой",
-      "Поддерживать давление в шинах (зимой падает)",
-      "Проверить высоковольтные провода и свечи",
-      "Использовать зимний омыватель −25°C",
-    ],
+    itemKeys: ["tips.winter.1", "tips.winter.2", "tips.winter.3", "tips.winter.4"],
   },
 ];
 
-const MILEAGE_REGS: { km: number; items: string[] }[] = [
-  {
-    km: 15000,
-    items: ["Замена моторного масла и масляного фильтра", "Проверка тормозной системы", "Диагностика подвески"],
-  },
-  {
-    km: 30000,
-    items: ["Замена воздушного и салонного фильтров", "Замена тормозной жидкости", "Чистка дроссельной заслонки"],
-  },
-  {
-    km: 60000,
-    items: ["Замена свечей зажигания", "Замена топливного фильтра", "Проверка ремня ГРМ", "Замена масла в АКПП/МКПП"],
-  },
-  {
-    km: 90000,
-    items: ["Замена ремня ГРМ с роликами и помпой", "Замена антифриза", "Диагностика турбины (если есть)"],
-  },
-  {
-    km: 120000,
-    items: ["Капитальная диагностика двигателя", "Замена приводных ремней", "Проверка катализатора и лямбда-зонда"],
-  },
+const MILEAGE_REGS: { km: number; itemKeys: string[] }[] = [
+  { km: 15000, itemKeys: ["tips.reg.15.1", "tips.reg.15.2", "tips.reg.15.3"] },
+  { km: 30000, itemKeys: ["tips.reg.30.1", "tips.reg.30.2", "tips.reg.30.3"] },
+  { km: 60000, itemKeys: ["tips.reg.60.1", "tips.reg.60.2", "tips.reg.60.3", "tips.reg.60.4"] },
+  { km: 90000, itemKeys: ["tips.reg.90.1", "tips.reg.90.2", "tips.reg.90.3"] },
+  { km: 120000, itemKeys: ["tips.reg.120.1", "tips.reg.120.2", "tips.reg.120.3"] },
 ];
 
 export default function Tips() {
+  const { t } = useTranslation();
+  const localeCode = getCurrentLocale() === "en" ? "en-US" : "ru-RU";
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -97,14 +65,14 @@ export default function Tips() {
     >
       <div className="flex items-center gap-2 mb-1">
         <Lightbulb size={20} style={{ color: SAPPHIRE_GLOW }} />
-        <h1 className="text-2xl font-bold">Памятка</h1>
+        <h1 className="text-2xl font-bold">{t("tips.title")}</h1>
       </div>
       <p className="text-xs text-muted-foreground uppercase tracking-widest mb-6">
-        Сезонные советы и регламент
+        {t("tips.subtitle")}
       </p>
 
       <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 px-1">
-        По сезонам
+        {t("tips.bySeasons")}
       </h2>
       <div className="space-y-3 mb-8">
         {SEASONS.map((s, i) => (
@@ -124,16 +92,16 @@ export default function Tips() {
               >
                 <s.icon size={18} style={{ color: s.color }} />
               </div>
-              <h3 className="text-base font-bold">{s.title}</h3>
+              <h3 className="text-base font-bold">{t(s.titleKey)}</h3>
             </div>
             <ul className="space-y-1.5">
-              {s.items.map((it, j) => (
-                <li key={j} className="flex items-start gap-2 text-[13px] text-muted-foreground leading-snug">
+              {s.itemKeys.map((k) => (
+                <li key={k} className="flex items-start gap-2 text-[13px] text-muted-foreground leading-snug">
                   <span
                     className="w-1 h-1 rounded-full mt-2 shrink-0"
                     style={{ backgroundColor: s.color }}
                   />
-                  <span>{it}</span>
+                  <span>{t(k)}</span>
                 </li>
               ))}
             </ul>
@@ -142,7 +110,7 @@ export default function Tips() {
       </div>
 
       <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 px-1">
-        Регламент по пробегу
+        {t("tips.byMileage")}
       </h2>
       <div className="space-y-3">
         {MILEAGE_REGS.map((r, i) => (
@@ -165,22 +133,22 @@ export default function Tips() {
                 </div>
                 <div>
                   <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                    каждые
+                    {t("tips.every")}
                   </div>
                   <div className="text-lg font-bold font-mono" style={{ color: SAPPHIRE_GLOW }}>
-                    {r.km.toLocaleString("ru-RU")} км
+                    {r.km.toLocaleString(localeCode)} {t("common.km")}
                   </div>
                 </div>
               </div>
             </div>
             <ul className="space-y-1.5">
-              {r.items.map((it, j) => (
-                <li key={j} className="flex items-start gap-2 text-[13px] text-muted-foreground leading-snug">
+              {r.itemKeys.map((k) => (
+                <li key={k} className="flex items-start gap-2 text-[13px] text-muted-foreground leading-snug">
                   <span
                     className="w-1 h-1 rounded-full mt-2 shrink-0"
                     style={{ backgroundColor: SAPPHIRE_GLOW }}
                   />
-                  <span>{it}</span>
+                  <span>{t(k)}</span>
                 </li>
               ))}
             </ul>

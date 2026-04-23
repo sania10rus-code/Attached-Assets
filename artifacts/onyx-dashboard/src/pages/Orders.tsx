@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { FileText, Download, Phone, MapPin, Clock, Check, Hourglass } from "lucide-react";
 import { formatRub, formatDateRu } from "@/lib/storage";
 import { useAppData } from "@/hooks/useAppData";
+import { useTranslation } from "@/i18n";
 
 const pastOrders = [
   { id: "48102", date: "2025-04-15", total: 24500, center: "ОНИКС-СЕРВИС МСК", items: 5 },
@@ -11,6 +12,7 @@ const pastOrders = [
 
 export default function Orders() {
   const { orders } = useAppData();
+  const { t } = useTranslation();
 
   return (
     <motion.div
@@ -19,8 +21,8 @@ export default function Orders() {
       transition={{ duration: 0.3 }}
       className="p-6 pt-12 min-h-full"
     >
-      <h1 className="text-2xl font-bold mb-1">Заказ-наряды</h1>
-      <p className="text-xs text-muted-foreground uppercase tracking-widest mb-6">Активные и архив</p>
+      <h1 className="text-2xl font-bold mb-1">{t("orders.title")}</h1>
+      <p className="text-xs text-muted-foreground uppercase tracking-widest mb-6">{t("orders.subtitle")}</p>
 
       {orders.map((order) => {
         const unpaid = order.paid === false;
@@ -59,7 +61,7 @@ export default function Orders() {
                       : "bg-amber-400/15 text-amber-400 border-amber-400/30"
                   }`}
                 >
-                  {paid ? "Оплачен" : "Не оплачен"}
+                  {paid ? t("orders.paid") : t("orders.unpaid")}
                 </span>
               )}
             </div>
@@ -82,7 +84,7 @@ export default function Orders() {
                 <div className="flex-1 min-w-0">
                   <div className="truncate">{it.name}</div>
                   <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
-                    {it.qty} шт.
+                    {it.qty} {t("common.pieces")}
                   </div>
                 </div>
                 <span className="font-mono shrink-0">{formatRub(it.price)}</span>
@@ -91,7 +93,7 @@ export default function Orders() {
           </div>
 
           <div className="flex justify-between items-center pt-4 border-t border-white/10 mb-4">
-            <span className="text-sm font-bold uppercase tracking-wider">Итого</span>
+            <span className="text-sm font-bold uppercase tracking-wider">{t("common.total")}</span>
             <span className="text-xl font-bold font-mono text-glow">{formatRub(order.total)}</span>
           </div>
 
@@ -104,12 +106,12 @@ export default function Orders() {
           {unpaid ? (
             <div className="w-full bg-amber-400/10 border border-amber-400/30 text-amber-400 rounded-2xl py-3 text-xs font-semibold flex items-center justify-center gap-2 text-center px-3 leading-snug">
               <Hourglass size={14} />
-              Ожидает подтверждения оплаты механиком
+              {t("orders.waitConfirm")}
             </div>
           ) : paid ? (
             <div className="w-full bg-green-500/15 border border-green-500/30 text-green-500 rounded-2xl py-3 text-sm font-semibold flex items-center justify-center gap-2">
               <Check size={16} />
-              Оплачено{order.paidAmount != null ? ` · ${formatRub(order.paidAmount)}` : ""}
+              {order.paidAmount != null ? t("orders.paidWith", { sum: formatRub(order.paidAmount) }) : t("orders.paidShort")}
             </div>
           ) : (
             <button
@@ -119,14 +121,14 @@ export default function Orders() {
               className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
             >
               <Phone size={16} />
-              Связаться с сервисом
+              {t("orders.callService")}
             </button>
           )}
         </motion.div>
         );
       })}
 
-      <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 px-1">Архив</h2>
+      <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3 px-1">{t("common.archive")}</h2>
       <div className="space-y-3">
         {pastOrders.map((order, i) => (
           <motion.div
@@ -153,11 +155,11 @@ export default function Orders() {
 
             <div className="bg-black/30 rounded-xl p-3 mb-3">
               <div className="text-[11px] text-muted-foreground mb-0.5">{order.center}</div>
-              <div className="text-[11px] font-medium">{order.items} позиций в заказе</div>
+              <div className="text-[11px] font-medium">{t("orders.positions", { n: order.items })}</div>
             </div>
 
             <div className="flex justify-between items-center">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Итого</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{t("common.total")}</span>
               <span className="text-base font-bold font-mono">{formatRub(order.total)}</span>
             </div>
           </motion.div>

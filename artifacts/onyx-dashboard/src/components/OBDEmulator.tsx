@@ -17,6 +17,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { useTranslation } from "@/i18n";
 
 const TICK_MS = 1000;
 const FUEL_CONSUMPTION_L_PER_100KM = 8;
@@ -53,6 +54,7 @@ function tempStep(prev: number): number {
 
 export default function OBDEmulator() {
   const data = useAppData();
+  const { t } = useTranslation();
   const [running, setRunning] = useState(false);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [scheduleFor, setScheduleFor] = useState<string | null>(null);
@@ -97,15 +99,15 @@ export default function OBDEmulator() {
         const dateIso = new Date().toISOString().slice(0, 10);
         addHistoryEvent({
           type: "Поездка",
-          desc: `Поездка ${distance} км · средняя ${avgSpeed} км/ч`,
-          place: "OBD-эмуляция",
+          desc: t("obd.tripDesc", { km: distance, avg: avgSpeed }),
+          place: t("obd.tripPlace"),
           mileage: endMileage,
           date: dateIso,
           icon: "trip",
         });
-        pushNotice({ text: `Поездка сохранена: ${distance} км` });
+        pushNotice({ text: t("obd.tripSaved", { km: distance }) });
       } else {
-        pushNotice({ text: "Эмуляция остановлена" });
+        pushNotice({ text: t("obd.stopped2") });
       }
     }
   };
@@ -113,7 +115,7 @@ export default function OBDEmulator() {
   const start = () => {
     if (timerRef.current != null) return;
     setRunning(true);
-    pushNotice({ text: "OBD-эмуляция запущена" });
+    pushNotice({ text: t("obd.started") });
     const cur = loadAppData();
     tripRef.current = {
       startedAt: Date.now(),
@@ -124,16 +126,16 @@ export default function OBDEmulator() {
 
     timerRef.current = window.setInterval(() => {
       const cur = loadAppData();
-      const t = cur.telemetry;
+      const tel = cur.telemetry;
 
-      const speed = pickNextSpeed(t.speed || 0);
+      const speed = pickNextSpeed(tel.speed || 0);
       const rpm = rpmFor(speed);
-      const temperature = tempStep(t.temperature || 90);
+      const temperature = tempStep(tel.temperature || 90);
       const addedKm = speed / 3600;
-      const mileageFloat = (t.mileage || 0) + addedKm;
+      const mileageFloat = (tel.mileage || 0) + addedKm;
       const mileage = Math.round(mileageFloat * 1000) / 1000;
       const fuelDelta = (addedKm * FUEL_CONSUMPTION_L_PER_100KM) / 100;
-      const fuelLiters = Math.max(0, Math.round(((t.fuelLiters ?? 50) - fuelDelta) * 100) / 100);
+      const fuelLiters = Math.max(0, Math.round(((tel.fuelLiters ?? 50) - fuelDelta) * 100) / 100);
 
       const next = updateTelemetry({
         speed,
@@ -148,7 +150,7 @@ export default function OBDEmulator() {
 
       if (fuelLiters < 10 && !lowFuelAlerted.current) {
         lowFuelAlerted.current = true;
-        pushNotice({ text: "Низкий уровень топлива. Найти АЗС?", fuelAlert: true });
+        pushNotice({ text: t("obd.lowFuel"), fuelAlert: true });
       }
 
       const flooredMileage = Math.floor(mileage);
@@ -157,11 +159,11 @@ export default function OBDEmulator() {
         const remaining = r.dueMileage - flooredMileage;
         if (remaining <= 1000 && remaining > 0 && !announced.current.has(r.id)) {
           announced.current.add(r.id);
-          pushNotice({ text: `Скоро ТО: ${r.text} (через ${remaining} км)`, reminderText: r.text });
+          pushNotice({ text: t("obd.soonReminder", { text: r.text, km: remaining }), reminderText: r.text });
         }
         if (remaining <= 0 && !announced.current.has(-r.id)) {
           announced.current.add(-r.id);
-          pushNotice({ text: `Срок: ${r.text}`, reminderText: r.text });
+          pushNotice({ text: t("obd.dueReminder", { text: r.text }), reminderText: r.text });
         }
       });
     }, TICK_MS);
@@ -173,9 +175,9 @@ export default function OBDEmulator() {
     };
   }, []);
 
-  const t = data.telemetry;
-  const displayMileage = Math.floor(t.mileage);
-  const fuelLiters = t.fuelLiters ?? 50;
+  const tel = data.telemetry;
+  const displayMileage = Math.floor(tel.mileage);
+  const fuelLiters = tel.fuelLiters ?? 50;
   const fuelPct = Math.max(0, Math.min(100, (fuelLiters / 50) * 100));
   const fuelLow = fuelLiters < 10;
 
@@ -184,7 +186,7 @@ export default function OBDEmulator() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Bluetooth size={16} className={running ? "text-primary" : "text-muted-foreground"} />
-          <h2 className="text-xs font-bold uppercase tracking-widest">OBD-эмуляция</h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest">{t("obd.title")}</h2>
         </div>
         <span
           className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border flex items-center gap-1.5 ${
@@ -200,26 +202,26 @@ export default function OBDEmulator() {
               transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
             />
           )}
-          {running ? "В эфире" : "Остановлено"}
+          {running ? t("obd.onAir") : t("obd.stopped")}
         </span>
       </div>
 
       <div className="grid grid-cols-3 gap-2 mb-4">
-        <LiveStat icon={Gauge} label="Скорость" value={String(t.speed)} unit="км/ч" pulse={running} />
-        <LiveStat icon={Activity} label="Обороты" value={String(t.rpm)} unit="об/мин" pulse={running} />
-        <LiveStat icon={Thermometer} label="Темп." value={t.temperature.toFixed(1)} unit="°C" pulse={running} />
+        <LiveStat icon={Gauge} label={t("obd.speed")} value={String(tel.speed)} unit={t("common.kmh")} pulse={running} />
+        <LiveStat icon={Activity} label={t("obd.rpmShort")} value={String(tel.rpm)} unit={t("common.rpm")} pulse={running} />
+        <LiveStat icon={Thermometer} label={t("obd.tempShort")} value={tel.temperature.toFixed(1)} unit="°C" pulse={running} />
       </div>
 
       <div className="bg-black/30 rounded-xl p-3 mb-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <Fuel size={12} className={fuelLow ? "text-primary" : "text-muted-foreground"} />
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Топливо</span>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{t("obd.fuel")}</span>
           </div>
           <span
             className={`text-xs font-mono font-bold ${fuelLow ? "text-primary text-glow" : "text-foreground"}`}
           >
-            {fuelLiters.toFixed(1)} л / 50 л
+            {fuelLiters.toFixed(1)} {t("common.liters")} / 50 {t("common.liters")}
           </span>
         </div>
         <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
@@ -235,15 +237,15 @@ export default function OBDEmulator() {
             className="mt-2 text-[10px] text-primary font-semibold uppercase tracking-wider flex items-center gap-1"
           >
             <MapPin size={11} />
-            Найти АЗС
+            {t("obd.findStation")}
           </button>
         )}
       </div>
 
       <div className="flex justify-between items-baseline mb-4 px-1">
-        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Текущий пробег</span>
+        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{t("obd.currentMileage")}</span>
         <span className={`text-sm font-mono font-bold ${running ? "text-primary text-glow" : ""}`}>
-          {formatMileage(displayMileage)} км
+          {formatMileage(displayMileage)} {t("common.km")}
         </span>
       </div>
 
@@ -253,7 +255,7 @@ export default function OBDEmulator() {
           className="w-full bg-primary text-primary-foreground rounded-2xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
         >
           <Play size={16} />
-          Старт эмуляции
+          {t("obd.start")}
         </button>
       ) : (
         <button
@@ -261,7 +263,7 @@ export default function OBDEmulator() {
           className="w-full glass-card rounded-2xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform border-primary/30 text-primary"
         >
           <Square size={16} />
-          Стоп
+          {t("obd.stop")}
         </button>
       )}
 
@@ -285,7 +287,7 @@ export default function OBDEmulator() {
                   }}
                   className="bg-primary text-primary-foreground rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-wider shrink-0"
                 >
-                  Записаться
+                  {t("obd.book")}
                 </button>
               )}
               {n.fuelAlert && (
@@ -297,7 +299,7 @@ export default function OBDEmulator() {
                   className="bg-primary text-primary-foreground rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-wider shrink-0 flex items-center gap-1"
                 >
                   <MapPin size={10} />
-                  Найти
+                  {t("obd.find")}
                 </button>
               )}
             </motion.div>
@@ -316,10 +318,10 @@ export default function OBDEmulator() {
           <SheetHeader className="text-left">
             <SheetTitle className="text-xl tracking-tight flex items-center gap-2">
               <Fuel size={18} className="text-primary" />
-              Ближайшие АЗС
+              {t("obd.nearbyStations")}
             </SheetTitle>
             <SheetDescription className="text-muted-foreground">
-              Топливо в баке: {fuelLiters.toFixed(1)} л
+              {t("obd.fuelInTank", { liters: fuelLiters.toFixed(1) })}
             </SheetDescription>
           </SheetHeader>
           <div className="px-4 py-4 space-y-2">

@@ -9,12 +9,15 @@ import {
   verifyBiometric,
 } from "@/lib/biometric";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import { useTranslation } from "@/i18n";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function Login() {
   const { login, loginAs } = useAuth();
+  const { t } = useTranslation();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
   const [showPolicy, setShowPolicy] = useState(false);
   const [bioSupported, setBioSupported] = useState(false);
   const [bioBusy, setBioBusy] = useState(false);
@@ -35,23 +38,27 @@ export default function Login() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setErrorKey(null);
+    if (!identifier.trim() || !password) {
+      setErrorKey("auth.error.fillFields");
+      return;
+    }
     const err = await login(identifier, password);
-    if (err) setError(err);
+    if (err) setErrorKey(err);
   };
 
   const tryBio = async () => {
     if (!lastLogin) return;
-    setError(null);
+    setErrorKey(null);
     setBioBusy(true);
     try {
       const ok = await verifyBiometric(lastLogin);
       if (!ok) {
-        setError("Биометрическая проверка не пройдена");
+        setErrorKey("login.bioFailed");
         return;
       }
       const err = await loginAs(lastLogin);
-      if (err) setError(err);
+      if (err) setErrorKey(err);
     } finally {
       setBioBusy(false);
     }
@@ -72,27 +79,30 @@ export default function Login() {
         transition={{ duration: 0.4 }}
         className="w-full max-w-sm"
       >
+        <div className="flex justify-end mb-3">
+          <LanguageSwitcher variant="compact" />
+        </div>
         <div className="flex flex-col items-center mb-8">
           <div className="flex items-center gap-2.5 mb-2">
             <Zap size={32} className="text-primary" strokeWidth={2.5} fill="currentColor" />
-            <span className="text-3xl font-bold tracking-tight text-glow">ОНИКС</span>
+            <span className="text-3xl font-bold tracking-tight text-glow">{t("common.brand")}</span>
           </div>
           <p className="text-[11px] tracking-widest uppercase text-muted-foreground font-mono">
-            Вход в систему
+            {t("login.title")}
           </p>
         </div>
 
         <form onSubmit={submit} className="glass-card rounded-2xl p-5 space-y-4">
           <div>
             <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium block mb-2">
-              Идентификатор / VIN
+              {t("login.identifier")}
             </label>
             <div className="relative">
               <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="0000 / VIN / ONX-..."
+                placeholder={t("login.identifierPlaceholder")}
                 autoCapitalize="characters"
                 autoComplete="off"
                 className="w-full bg-black/40 border border-white/10 rounded-xl pl-9 pr-3 py-3 text-sm font-mono outline-none focus:border-primary/50 transition-colors"
@@ -102,7 +112,7 @@ export default function Login() {
 
           <div>
             <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium block mb-2">
-              Пароль
+              {t("login.password")}
             </label>
             <div className="relative">
               <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -125,20 +135,20 @@ export default function Login() {
                 <Wrench size={14} className="text-primary" />
               )}
               <span>
-                Определено как:{" "}
+                {t("login.detectedAs")}{" "}
                 <span className="text-foreground font-medium">
-                  {detectedRole === "owner" ? "Владелец" : "Механик / организация"}
+                  {detectedRole === "owner" ? t("login.detected.owner") : t("login.detected.mechanic")}
                 </span>
               </span>
             </div>
           )}
 
-          {error && (
+          {errorKey && (
             <div
               data-testid="login-error"
               className="text-[11px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2"
             >
-              {error}
+              {t(errorKey)}
             </div>
           )}
 
@@ -148,7 +158,7 @@ export default function Login() {
             className="w-full bg-primary text-primary-foreground rounded-xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
           >
             <LogIn size={16} />
-            Войти
+            {t("login.submit")}
           </button>
 
           {bioSupported && bioEnabledForLast && lastLogin && (
@@ -160,21 +170,21 @@ export default function Login() {
               className="w-full border border-primary/30 bg-primary/10 hover:bg-primary/15 text-primary rounded-xl py-3 text-xs font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform disabled:opacity-50"
             >
               <Fingerprint size={16} />
-              {bioBusy ? "Проверка…" : `Войти как ${lastLogin} по биометрии`}
+              {bioBusy ? t("login.bioCheck") : t("login.bioLogin", { login: lastLogin })}
             </button>
           )}
         </form>
 
         <div className="mt-4 px-1 text-[10px] text-muted-foreground/70 leading-relaxed font-mono">
-          Тестовые данные:
+          {t("login.testData")}
           <br />
-          0000 / 0000 — Skoda Octavia (Иван Петров)
+          {t("login.demoSkoda")}
           <br />
-          2222 / 2222 — Audi A6 (Сергей Иванов)
+          {t("login.demoAudi")}
           <br />
-          3333 / 3333 — BMW X5 (Дмитрий Соколов)
+          {t("login.demoBmw")}
           <br />
-          11111 / 11111 — Механик (Алексей Смирнов)
+          {t("login.demoMech")}
         </div>
 
         <div className="mt-6 flex items-center justify-center">
@@ -185,7 +195,7 @@ export default function Login() {
             className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 underline-offset-4 hover:underline"
           >
             <FileText size={12} />
-            Политика конфиденциальности
+            {t("login.policyLink")}
           </button>
         </div>
       </motion.div>

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/sheet";
 import { addAppointment, loadAppData, setSelectedSto } from "@/lib/storage";
 import { STO_LIST } from "@/lib/catalog";
+import { useTranslation, getCurrentLocale } from "@/i18n";
 
 type Props = {
   open: boolean;
@@ -18,8 +19,6 @@ type Props = {
 };
 
 const SLOTS = ["9:00–12:00", "12:00–15:00", "15:00–18:00"];
-const RU_MONTHS = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
-const RU_DOW = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
 
 function nextDays(n: number): Date[] {
   const out: Date[] = [];
@@ -36,6 +35,8 @@ function nextDays(n: number): Date[] {
 const toIso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default function SchedulingModal({ open, onOpenChange, workName }: Props) {
+  const { t } = useTranslation();
+  const localeCode = getCurrentLocale() === "en" ? "en-US" : "ru-RU";
   const days = useMemo(() => nextDays(14), []);
   const initial = loadAppData();
   const [stoId, setStoId] = useState<string>(initial.selectedStoId);
@@ -90,11 +91,11 @@ export default function SchedulingModal({ open, onOpenChange, workName }: Props)
             ) : (
               <CalendarCheck size={18} className="text-primary" />
             )}
-            {submitted ? "Заявка отправлена" : "Запись в ОНИКС-СЕРВИС"}
+            {submitted ? t("sched.titleSent") : t("sched.title")}
           </SheetTitle>
           <SheetDescription className="text-muted-foreground">
             {submitted ? (
-              <>Заявка отправлена механику. Ожидайте звонка или сообщения в чате.</>
+              <>{t("sched.descSent")}</>
             ) : (
               <span className="text-foreground font-medium">{workName}</span>
             )}
@@ -105,7 +106,7 @@ export default function SchedulingModal({ open, onOpenChange, workName }: Props)
           <>
             <div className="px-4 mt-4">
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-medium">
-                Сервисный центр
+                {t("sched.center")}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {STO_LIST.map((s) => {
@@ -146,7 +147,7 @@ export default function SchedulingModal({ open, onOpenChange, workName }: Props)
 
             <div className="px-4 mt-4">
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-medium">
-                Дата
+                {t("sched.date")}
               </div>
               <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 no-scrollbar">
                 {days.map((d) => {
@@ -162,9 +163,9 @@ export default function SchedulingModal({ open, onOpenChange, workName }: Props)
                           : "bg-black/30 border-white/10 text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      <span className="text-[10px] uppercase tracking-wider">{RU_DOW[d.getDay()]}</span>
+                      <span className="text-[10px] uppercase tracking-wider">{d.toLocaleDateString(localeCode, { weekday: "short" })}</span>
                       <span className="text-lg font-bold leading-none">{d.getDate()}</span>
-                      <span className="text-[10px] mt-0.5">{RU_MONTHS[d.getMonth()]}</span>
+                      <span className="text-[10px] mt-0.5">{d.toLocaleDateString(localeCode, { month: "short" })}</span>
                     </button>
                   );
                 })}
@@ -173,7 +174,7 @@ export default function SchedulingModal({ open, onOpenChange, workName }: Props)
 
             <div className="px-4 mt-4">
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-medium">
-                Время
+                {t("sched.time")}
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {SLOTS.map((s) => {
@@ -207,7 +208,7 @@ export default function SchedulingModal({ open, onOpenChange, workName }: Props)
               onClick={() => handleClose(false)}
               className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold active:scale-[.98] transition-transform"
             >
-              Готово
+              {t("common.done")}
             </button>
           ) : (
             <>
@@ -217,14 +218,14 @@ export default function SchedulingModal({ open, onOpenChange, workName }: Props)
                 className="w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform disabled:opacity-40"
               >
                 <CalendarCheck size={16} />
-                Подтвердить запись
+                {t("sched.confirm")}
               </button>
               <button
                 onClick={() => handleClose(false)}
                 className="w-full glass-card rounded-2xl py-4 text-sm font-medium text-muted-foreground flex items-center justify-center gap-2"
               >
                 <X size={16} />
-                Отмена
+                {t("common.cancel")}
               </button>
             </>
           )}

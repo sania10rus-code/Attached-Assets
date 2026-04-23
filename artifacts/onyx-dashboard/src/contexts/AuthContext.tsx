@@ -22,8 +22,8 @@ const AuthCtx = createContext<Ctx>({
   user: null,
   ready: false,
   justLoggedIn: false,
-  login: async () => "Не инициализировано",
-  loginAs: async () => "Не инициализировано",
+  login: async () => "Not initialized",
+  loginAs: async () => "Not initialized",
   logout: () => {},
   markOnboardingDone: () => {},
 });
@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     justLoggedIn,
     login: async (loginVal, password) => {
       const u = tryLogin(loginVal.trim(), password);
-      if (!u) return "Неверный логин или пароль";
+      if (!u) return "auth.error.invalid";
       await saveUser(u);
       resetRoute();
       setUser(u);
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     loginAs: async (loginVal) => {
       const u = userByLogin(loginVal);
-      if (!u) return "Профиль не найден";
+      if (!u) return "auth.error.invalid";
       await saveUser(u);
       resetRoute();
       setUser(u);

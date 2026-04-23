@@ -1,20 +1,21 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
 import { Gauge, History, Lightbulb, Car, Settings } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 const ACTIVE_COLOR = "#2a5a8a";
 import { motion } from "framer-motion";
 
-const tabs = [
-  { path: "/", label: "Главная", icon: Gauge },
-  { path: "/diagnostics", label: "Диагн.", icon: Car },
-  { path: "/tips", label: "Памятка", icon: Lightbulb },
-  { path: "/history", label: "История", icon: History },
-  { path: "/more", label: "Ещё", icon: Settings },
-];
-
 export default function BottomNav() {
   const [location] = useLocation();
+  const { t } = useTranslation();
+  const tabs = [
+    { path: "/", labelKey: "nav.home", icon: Gauge },
+    { path: "/diagnostics", labelKey: "nav.diagnostics", icon: Car },
+    { path: "/tips", labelKey: "nav.tips", icon: Lightbulb },
+    { path: "/history", labelKey: "nav.history", icon: History },
+    { path: "/more", labelKey: "nav.more", icon: Settings },
+  ];
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center w-full pointer-events-none">
@@ -43,7 +44,7 @@ export default function BottomNav() {
                   }`}
                   style={{ color: isActive ? ACTIVE_COLOR : undefined }}
                 >
-                  {tab.label}
+                  {t(tab.labelKey)}
                 </span>
 
                 {isActive && (

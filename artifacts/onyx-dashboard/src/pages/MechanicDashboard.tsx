@@ -20,6 +20,7 @@ import {
   updateAppointmentFor,
   formatDateRu,
   formatRub,
+  formatMileage,
   markOrderPaidFor,
   loadAllOwnersData,
   subscribe,
@@ -31,6 +32,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { findSto } from "@/lib/catalog";
 import WorkOrderDocument from "@/components/WorkOrderDocument";
 import DefectForm from "@/components/DefectForm";
+import { useTranslation } from "@/i18n";
 
 type Tab = "tasks" | "history" | "chat" | "profile";
 
@@ -44,8 +46,16 @@ const statusMeta: Record<AppointmentStatus, { chip: string; dot: string }> = {
 type EnrichedAppt = Appointment & { ownerLogin: string };
 type EnrichedOrder = Order & { ownerLogin: string };
 
+const STATUS_KEY: Record<AppointmentStatus, string> = {
+  Ожидает: "mech.status.wait",
+  "В работе": "mech.status.work",
+  Готово: "mech.status.done",
+  Отменено: "mech.status.cancel",
+};
+
 export default function MechanicDashboard() {
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("tasks");
   const [online, setOnline] = useState(true);
   const [orderFor, setOrderFor] = useState<EnrichedAppt | null>(null);
@@ -120,10 +130,10 @@ export default function MechanicDashboard() {
           <div>
             <h1 className="text-xl font-bold tracking-tight text-glow">{orgName}</h1>
             <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
-              {user?.name} · Панель механика
+              {t("mech.subtitle", { name: user?.name || "" })}
             </p>
             <p className="text-[10px] text-muted-foreground/60 font-mono mt-0.5">
-              Активных задач: {activeTasks.length} · Машин: {snapshot.length}
+              {t("mech.activeCount", { n: activeTasks.length, cars: snapshot.length })}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -136,12 +146,12 @@ export default function MechanicDashboard() {
               }`}
             >
               <Power size={12} />
-              {online ? "Онлайн" : "Офлайн"}
+              {online ? t("common.online") : t("common.offline")}
             </button>
             <button
               onClick={logout}
               className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-muted-foreground"
-              title="Выйти"
+              title={t("common.logout")}
               data-testid="mech-logout"
             >
               <LogOut size={14} />
@@ -155,23 +165,24 @@ export default function MechanicDashboard() {
           <TasksTab
             tasks={activeTasks}
             getOrder={getOrderForTask}
-            onChange={(t, patch) => updateAppointmentFor(t.ownerLogin, t.id, patch)}
-            onCreateOrder={(t) => {
-              setOrderFor(t);
+            onChange={(task, patch) => updateAppointmentFor(task.ownerLogin, task.id, patch)}
+            onCreateOrder={(task) => {
+              setOrderFor(task);
               setShowOrderForm(true);
             }}
             onConfirmPay={(o) => setConfirmPayFor(o)}
             onAddDefect={(vin) => setDefectForVin(vin)}
+            t={t}
           />
         )}
         {tab === "history" && (
-          <HistoryTab tasks={archivedTasks} getOrder={getOrderForTask} />
+          <HistoryTab tasks={archivedTasks} getOrder={getOrderForTask} t={t} />
         )}
         {tab === "chat" && (
-          <Stub title="Чат с владельцами" subtitle="Раздел в разработке" icon={MessageSquare} />
+          <Stub title={t("mech.chat.title")} subtitle={t("mech.chat.sub")} icon={MessageSquare} />
         )}
         {tab === "profile" && (
-          <Stub title="Профиль" subtitle={`${user?.name} · ${orgName}`} icon={UserIcon} />
+          <Stub title={t("nav.profile")} subtitle={`${user?.name} · ${orgName}`} icon={UserIcon} />
         )}
       </main>
 
@@ -179,10 +190,10 @@ export default function MechanicDashboard() {
         <div className="w-full max-w-[430px] bg-background/80 backdrop-blur-xl border-t border-white/10 pointer-events-auto">
           <div className="flex items-center justify-around h-16 px-2">
             {[
-              { id: "tasks" as const, label: "Задачи", icon: ListChecks },
-              { id: "history" as const, label: "История", icon: HistoryIcon },
-              { id: "chat" as const, label: "Чат", icon: MessageSquare },
-              { id: "profile" as const, label: "Профиль", icon: UserIcon },
+              { id: "tasks" as const, label: t("nav.tasks"), icon: ListChecks },
+              { id: "history" as const, label: t("nav.history"), icon: HistoryIcon },
+              { id: "chat" as const, label: t("nav.chat"), icon: MessageSquare },
+              { id: "profile" as const, label: t("nav.profile"), icon: UserIcon },
             ].map((nav) => {
               const active = tab === nav.id;
               const Icon = nav.icon;
@@ -231,18 +242,21 @@ export default function MechanicDashboard() {
           if (confirmPayFor) markOrderPaidFor(confirmPayFor.ownerLogin, confirmPayFor.id, amount);
           setConfirmPayFor(null);
         }}
+        t={t}
       />
 
       <DefectForm
         open={!!defectForVin}
         onClose={() => setDefectForVin(null)}
         vin={defectForVin || ""}
-        mechanicName={user?.name || "Механик"}
+        mechanicName={user?.name || t("common.role.mechanic")}
         mechanicOrg={user?.org}
       />
     </div>
   );
 }
+
+type T = (k: string, p?: Record<string, string | number>) => string;
 
 function TasksTab({
   tasks,
@@ -251,13 +265,15 @@ function TasksTab({
   onCreateOrder,
   onConfirmPay,
   onAddDefect,
+  t,
 }: {
   tasks: EnrichedAppt[];
-  getOrder: (t: EnrichedAppt) => EnrichedOrder | undefined;
-  onChange: (t: EnrichedAppt, patch: Partial<Appointment>) => void;
-  onCreateOrder: (t: EnrichedAppt) => void;
+  getOrder: (task: EnrichedAppt) => EnrichedOrder | undefined;
+  onChange: (task: EnrichedAppt, patch: Partial<Appointment>) => void;
+  onCreateOrder: (task: EnrichedAppt) => void;
   onConfirmPay: (o: EnrichedOrder) => void;
   onAddDefect: (vin: string) => void;
+  t: T;
 }) {
   if (tasks.length === 0) {
     return (
@@ -265,24 +281,25 @@ function TasksTab({
         <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
           <ListChecks size={28} className="text-muted-foreground" />
         </div>
-        <p className="text-sm text-muted-foreground">На сегодня задач нет</p>
+        <p className="text-sm text-muted-foreground">{t("mech.empty.tasks")}</p>
         <p className="text-[11px] text-muted-foreground/60 mt-1">
-          Когда владелец оставит заявку, она появится здесь.
+          {t("mech.empty.tasksHint")}
         </p>
       </div>
     );
   }
   return (
     <div className="p-6 space-y-3">
-      {tasks.map((t) => (
+      {tasks.map((task) => (
         <TaskCard
-          key={`${t.ownerLogin}:${t.id}`}
-          task={t}
-          order={getOrder(t)}
+          key={`${task.ownerLogin}:${task.id}`}
+          task={task}
+          order={getOrder(task)}
           onChange={onChange}
           onCreateOrder={onCreateOrder}
           onConfirmPay={onConfirmPay}
           onAddDefect={onAddDefect}
+          t={t}
         />
       ))}
     </div>
@@ -296,13 +313,15 @@ function TaskCard({
   onCreateOrder,
   onConfirmPay,
   onAddDefect,
+  t,
 }: {
   task: EnrichedAppt;
   order?: EnrichedOrder;
-  onChange: (t: EnrichedAppt, patch: Partial<Appointment>) => void;
-  onCreateOrder: (t: EnrichedAppt) => void;
+  onChange: (task: EnrichedAppt, patch: Partial<Appointment>) => void;
+  onCreateOrder: (task: EnrichedAppt) => void;
   onConfirmPay: (o: EnrichedOrder) => void;
   onAddDefect: (vin: string) => void;
+  t: T;
 }) {
   const meta = statusMeta[task.status];
   const [comment, setComment] = useState(task.mechanicComment || "");
@@ -333,7 +352,7 @@ function TaskCard({
           className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border flex items-center gap-1.5 shrink-0 ${meta.chip}`}
         >
           <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
-          {task.status}
+          {t(STATUS_KEY[task.status])}
         </span>
       </div>
 
@@ -344,7 +363,7 @@ function TaskCard({
             <Clock size={11} />
             {formatDateRu(task.date)} · {task.slot}
           </span>
-          <span>{task.mileage.toLocaleString("ru-RU")} км</span>
+          <span>{formatMileage(task.mileage)} {t("common.km")}</span>
         </div>
         <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80">
           <MapPin size={11} />
@@ -356,7 +375,7 @@ function TaskCard({
         <div className="bg-primary/10 border border-primary/30 rounded-xl p-3 mb-3">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] uppercase tracking-widest text-primary font-bold">
-              Наряд № {order.id}
+              {t("mech.orderNo", { id: order.id })}
             </span>
             <span className="text-sm font-bold font-mono text-primary">{formatRub(order.total)}</span>
           </div>
@@ -366,7 +385,7 @@ function TaskCard({
               className="w-full bg-green-500/15 border border-green-500/30 text-green-500 rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5"
             >
               <Check size={13} />
-              Оплачено
+              {t("orders.paid")}
               {order.paidAmount != null && ` · ${formatRub(order.paidAmount)}`}
             </button>
           ) : (
@@ -375,7 +394,7 @@ function TaskCard({
               className="w-full bg-primary text-primary-foreground rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[.98] transition-transform"
             >
               <CreditCard size={13} />
-              Подтвердить оплату
+              {t("mech.confirmPay")}
             </button>
           )}
         </div>
@@ -386,14 +405,14 @@ function TaskCard({
               onClick={() => onChange(task, { status: "Готово" })}
               className="bg-green-500/15 border border-green-500/30 text-green-500 rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[.98] transition-transform"
             >
-              <Check size={14} />В норме
+              <Check size={14} />{t("mech.normal")}
             </button>
             <button
               onClick={() => onChange(task, { status: "В работе" })}
               className="bg-blue-500/15 border border-blue-500/30 text-blue-400 rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[.98] transition-transform"
             >
               <Wrench size={14} />
-              Замена выполнена
+              {t("mech.replaced")}
             </button>
           </div>
 
@@ -402,7 +421,7 @@ function TaskCard({
             onChange={(e) => setComment(e.target.value)}
             onBlur={saveComment}
             rows={2}
-            placeholder="Комментарий механика…"
+            placeholder={t("mech.commentPh")}
             className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary/50 resize-none mb-3"
           />
 
@@ -413,14 +432,14 @@ function TaskCard({
               data-testid={`add-defect-${task.id}`}
             >
               <AlertTriangle size={14} />
-              Неисправность
+              {t("mech.defect")}
             </button>
             <button
               onClick={() => onCreateOrder(task)}
               className="bg-primary text-primary-foreground rounded-xl py-3 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[.98] transition-transform"
             >
               <FilePlus size={14} />
-              Заказ-наряд
+              {t("mech.workOrder")}
             </button>
           </div>
         </>
@@ -432,9 +451,11 @@ function TaskCard({
 function HistoryTab({
   tasks,
   getOrder,
+  t,
 }: {
   tasks: EnrichedAppt[];
-  getOrder: (t: EnrichedAppt) => EnrichedOrder | undefined;
+  getOrder: (task: EnrichedAppt) => EnrichedOrder | undefined;
+  t: T;
 }) {
   if (tasks.length === 0) {
     return (
@@ -442,31 +463,31 @@ function HistoryTab({
         <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
           <HistoryIcon size={28} className="text-muted-foreground" />
         </div>
-        <p className="text-sm text-muted-foreground">Закрытых задач пока нет</p>
+        <p className="text-sm text-muted-foreground">{t("mech.empty.archive")}</p>
       </div>
     );
   }
   return (
     <div className="p-6 space-y-3">
-      {tasks.map((t) => {
-        const meta = statusMeta[t.status];
-        const order = getOrder(t);
+      {tasks.map((task) => {
+        const meta = statusMeta[task.status];
+        const order = getOrder(task);
         return (
-          <div key={`${t.ownerLogin}:${t.id}`} className="glass-card rounded-2xl p-4 border-white/5">
+          <div key={`${task.ownerLogin}:${task.id}`} className="glass-card rounded-2xl p-4 border-white/5">
             <div className="flex items-start justify-between mb-2">
               <div>
-                <h3 className="font-semibold text-sm">{t.ownerName}</h3>
-                <p className="text-[11px] text-muted-foreground font-mono">{t.carModel}</p>
+                <h3 className="font-semibold text-sm">{task.ownerName}</h3>
+                <p className="text-[11px] text-muted-foreground font-mono">{task.carModel}</p>
               </div>
               <span
                 className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border ${meta.chip}`}
               >
-                {t.status}
+                {t(STATUS_KEY[task.status])}
               </span>
             </div>
-            <p className="text-xs text-muted-foreground">{t.workName}</p>
+            <p className="text-xs text-muted-foreground">{task.workName}</p>
             <p className="text-[11px] font-mono text-muted-foreground/70 mt-2">
-              {formatDateRu(t.date)} · {t.slot}
+              {formatDateRu(task.date)} · {task.slot}
             </p>
             {order && (
               <div className="mt-2 flex items-center justify-between bg-black/30 rounded-lg px-2.5 py-1.5">
@@ -507,10 +528,12 @@ function ConfirmPaymentSheet({
   order,
   onClose,
   onConfirm,
+  t,
 }: {
   order: EnrichedOrder | null;
   onClose: () => void;
   onConfirm: (amount: number) => void;
+  t: T;
 }) {
   const [amount, setAmount] = useState<string>("");
 
@@ -539,10 +562,10 @@ function ConfirmPaymentSheet({
               <div>
                 <h3 className="text-lg font-bold tracking-tight flex items-center gap-2">
                   <CreditCard size={18} className="text-primary" />
-                  Подтвердить оплату
+                  {t("mech.payTitle")}
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Заказ-наряд № {order.id} · сумма к оплате {formatRub(order.total)}
+                  {t("mech.paySub", { id: order.id, sum: formatRub(order.total) })}
                 </p>
               </div>
               <button
@@ -555,7 +578,7 @@ function ConfirmPaymentSheet({
 
             <div>
               <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium block mb-2">
-                Полученная сумма
+                {t("mech.payAmount")}
               </label>
               <div className="relative">
                 <input
@@ -578,7 +601,7 @@ function ConfirmPaymentSheet({
               className="mt-5 w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform disabled:opacity-40"
             >
               <Check size={16} />
-              Подтвердить оплату
+              {t("mech.confirmPay")}
             </button>
           </motion.div>
         </motion.div>

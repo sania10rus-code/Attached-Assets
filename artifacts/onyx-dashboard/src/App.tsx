@@ -25,6 +25,7 @@ import Tips from "@/pages/Tips";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { isPolicyAccepted, acceptPolicy } from "@/lib/privacy";
 import { getSecurityWarning, installSecureFetchGuard } from "@/lib/security";
+import { LocaleProvider } from "@/i18n";
 
 const queryClient = new QueryClient();
 
@@ -121,13 +122,15 @@ function App() {
   }, []);
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <SecurityBanner />
-        <AuthProvider>
-          <Shell />
-        </AuthProvider>
-        <Toaster />
-      </TooltipProvider>
+      <LocaleProvider>
+        <TooltipProvider>
+          <SecurityBanner />
+          <AuthProvider>
+            <Shell />
+          </AuthProvider>
+          <Toaster />
+        </TooltipProvider>
+      </LocaleProvider>
     </QueryClientProvider>
   );
 }

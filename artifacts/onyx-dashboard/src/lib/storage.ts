@@ -758,16 +758,36 @@ export function addDefectByVin(
 
 // ===== Formatting =====
 
+function currentLocale(): "ru" | "en" {
+  try {
+    const v = localStorage.getItem("onix_locale_v1");
+    if (v === "ru" || v === "en") return v;
+  } catch {}
+  return "ru";
+}
+
+function bcp(): string {
+  return currentLocale() === "en" ? "en-US" : "ru-RU";
+}
+
 export function formatMileage(km: number): string {
-  return km.toLocaleString("ru-RU");
+  return km.toLocaleString(bcp());
 }
 
 export function formatRub(n: number): string {
-  return n.toLocaleString("ru-RU") + " ₽";
+  // Currency stays in rubles; locale only affects grouping.
+  return n.toLocaleString(bcp()) + " ₽";
 }
 
 export function formatDateRu(iso: string): string {
   const [y, m, d] = iso.split("-");
+  if (currentLocale() === "en") {
+    // ISO-like display for English: 23 Apr 2026
+    const date = new Date(`${y}-${m}-${d}T00:00:00`);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    }
+  }
   return `${d}.${m}.${y}`;
 }
 

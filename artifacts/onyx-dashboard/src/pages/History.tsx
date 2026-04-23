@@ -26,6 +26,7 @@ import {
   acknowledgeDiscrepancy,
 } from "@/lib/storage";
 import { useAppData } from "@/hooks/useAppData";
+import { useTranslation, getCurrentLocale } from "@/i18n";
 
 type Tone = "neutral" | "primary" | "warn" | "danger" | "ok";
 
@@ -60,6 +61,8 @@ const toneStyles: Record<Tone, { dot: string; iconWrap: string; icon: string; ch
 
 export default function History() {
   const data = useAppData();
+  const { t } = useTranslation();
+  const localeCode = getCurrentLocale() === "en" ? "en-US" : "ru-RU";
   const events = useMemo(
     () => [...data.history].sort((a, b) => b.date.localeCompare(a.date)),
     [data.history],
@@ -70,16 +73,16 @@ export default function History() {
 
   const handleExport = () => {
     const lines: string[] = [];
-    lines.push(`ОНИКС — История автомобиля`);
+    lines.push(t("history.exportTitle"));
     lines.push(`${data.carModel} (${data.carYear})`);
-    lines.push(`Текущий пробег: ${formatMileage(Math.floor(data.telemetry.mileage))} км`);
-    lines.push(`Сформировано: ${new Date().toLocaleString("ru-RU")}`);
+    lines.push(t("history.exportCurrent", { km: formatMileage(Math.floor(data.telemetry.mileage)) }));
+    lines.push(t("history.exportGenerated", { ts: new Date().toLocaleString(localeCode) }));
     lines.push("");
     lines.push("=".repeat(50));
     lines.push("");
     events.forEach((e) => {
       lines.push(`[${formatDateRu(e.date)}] ${e.type} — ${e.desc}`);
-      lines.push(`  Пробег: ${formatMileage(e.mileage)} км${e.place ? ` · ${e.place}` : ""}`);
+      lines.push(`  ${t("home.stats.mileage")}: ${formatMileage(e.mileage)} ${t("common.km")}${e.place ? ` · ${e.place}` : ""}`);
       lines.push("");
     });
     const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
@@ -102,22 +105,22 @@ export default function History() {
     >
       <div className="flex items-start justify-between mb-6 gap-3">
         <div>
-          <h1 className="text-2xl font-bold mb-1">История</h1>
-          <p className="text-xs text-muted-foreground uppercase tracking-widest">События автомобиля</p>
+          <h1 className="text-2xl font-bold mb-1">{t("history.title")}</h1>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">{t("history.subtitle")}</p>
         </div>
         <button
           onClick={handleExport}
           className="glass-card border-primary/30 text-primary rounded-full px-3 py-2 text-xs font-semibold flex items-center gap-1.5 active:scale-[.98] transition-transform shrink-0"
         >
           <Download size={14} />
-          Экспорт
+          {t("history.export")}
         </button>
       </div>
 
       <div className="relative border-l border-white/10 ml-3 space-y-6 pb-4">
         {events.map((item, i) => {
           const tone = toneByType(item.type);
-          const t = toneStyles[tone];
+          const ts = toneStyles[tone];
           const Icon = iconMap[item.icon] ?? Wrench;
           const editable = canEdit(item.createdAt);
           const isDiscrepancy = !!item.discrepancy;
@@ -130,7 +133,7 @@ export default function History() {
               key={item.id}
               className="relative pl-6"
             >
-              <div className={`absolute -left-[5px] top-2 w-2.5 h-2.5 rounded-full ${t.dot}`} />
+              <div className={`absolute -left-[5px] top-2 w-2.5 h-2.5 rounded-full ${ts.dot}`} />
 
               <div className="text-[11px] font-mono text-muted-foreground mb-1.5 tracking-wider">
                 {formatDateRu(item.date)}
@@ -142,8 +145,8 @@ export default function History() {
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${t.iconWrap}`}>
-                    <Icon size={18} className={t.icon} />
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${ts.iconWrap}`}>
+                    <Icon size={18} className={ts.icon} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
@@ -152,15 +155,15 @@ export default function History() {
                         {item.desc}
                       </h3>
                       <span
-                        className={`text-[10px] font-mono font-medium uppercase tracking-wider ${t.chip} shrink-0`}
+                        className={`text-[10px] font-mono font-medium uppercase tracking-wider ${ts.chip} shrink-0`}
                       >
-                        {formatMileage(item.mileage)} км
+                        {formatMileage(item.mileage)} {t("common.km")}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                         {item.place && <MapPin size={12} />}
-                        <span>{item.place || "Бортовая диагностика"}</span>
+                        <span>{item.place || t("history.diagnosticPlace")}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium">
@@ -171,7 +174,7 @@ export default function History() {
                             onClick={() => setEditing(item)}
                             className="text-muted-foreground hover:text-primary"
                             data-testid={`edit-${item.id}`}
-                            title="Редактировать (доступно 24ч)"
+                            title={t("history.editTooltip")}
                           >
                             <Pencil size={13} />
                           </button>
@@ -180,7 +183,7 @@ export default function History() {
                             onClick={() => setLocked(item)}
                             className="text-muted-foreground/60"
                             data-testid={`lock-${item.id}`}
-                            title="Запись неизменяема"
+                            title={t("history.lockTooltip")}
                           >
                             <Lock size={13} />
                           </button>
@@ -190,11 +193,11 @@ export default function History() {
                     {isDiscrepancy && item.discrepancy && (
                       <div className="mt-3 bg-amber-400/10 border border-amber-400/30 rounded-xl p-2.5 text-[11px] text-amber-400 space-y-1.5">
                         <div className="font-mono leading-snug">
-                          Указано {formatMileage(item.discrepancy.reportedMileage)} км
-                          {" · "}
-                          по данным авто {formatMileage(item.discrepancy.actualMileage)} км
-                          {" · "}
-                          расхождение {formatMileage(item.discrepancy.diff)} км
+                          {t("history.discrepancyDesc", {
+                            reported: formatMileage(item.discrepancy.reportedMileage),
+                            actual: formatMileage(item.discrepancy.actualMileage),
+                            diff: formatMileage(item.discrepancy.diff),
+                          })}
                         </div>
                         {needsAck && (
                           <button
@@ -203,7 +206,7 @@ export default function History() {
                             className="w-full bg-amber-400/15 border border-amber-400/40 rounded-lg py-1.5 text-[11px] font-semibold flex items-center justify-center gap-1.5 mt-1"
                           >
                             <Check size={12} />
-                            Подтвердить ознакомление
+                            {t("history.acknowledge")}
                           </button>
                         )}
                       </div>
@@ -223,6 +226,7 @@ export default function History() {
 }
 
 function EditEventSheet({ event, onClose }: { event: HistoryEvent | null; onClose: () => void }) {
+  const { t } = useTranslation();
   const [desc, setDesc] = useState("");
   const [mileage, setMileage] = useState<string>("");
 
@@ -254,10 +258,10 @@ function EditEventSheet({ event, onClose }: { event: HistoryEvent | null; onClos
               <div>
                 <h3 className="text-lg font-bold tracking-tight flex items-center gap-2">
                   <Pencil size={16} className="text-primary" />
-                  Редактировать запись
+                  {t("history.editTitle")}
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Доступно в течение 24ч с момента создания
+                  {t("history.editHint")}
                 </p>
               </div>
               <button
@@ -271,7 +275,7 @@ function EditEventSheet({ event, onClose }: { event: HistoryEvent | null; onClos
             <div className="space-y-3">
               <label className="block">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium block mb-1.5">
-                  Описание
+                  {t("history.editDesc")}
                 </span>
                 <input
                   value={desc}
@@ -281,7 +285,7 @@ function EditEventSheet({ event, onClose }: { event: HistoryEvent | null; onClos
               </label>
               <label className="block">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium block mb-1.5">
-                  Пробег, км
+                  {t("history.editMileage")}
                 </span>
                 <input
                   type="number"
@@ -303,7 +307,7 @@ function EditEventSheet({ event, onClose }: { event: HistoryEvent | null; onClos
               className="mt-5 w-full bg-primary text-primary-foreground rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
             >
               <Check size={16} />
-              Сохранить
+              {t("common.save")}
             </button>
           </motion.div>
         </motion.div>
@@ -313,6 +317,7 @@ function EditEventSheet({ event, onClose }: { event: HistoryEvent | null; onClos
 }
 
 function LockedSheet({ event, onClose }: { event: HistoryEvent | null; onClose: () => void }) {
+  const { t } = useTranslation();
   return (
     <AnimatePresence>
       {event && (
@@ -335,22 +340,21 @@ function LockedSheet({ event, onClose }: { event: HistoryEvent | null; onClose: 
                 <Lock size={18} className="text-muted-foreground" />
               </div>
               <div>
-                <h3 className="text-base font-bold tracking-tight">Запись неизменяема</h3>
+                <h3 className="text-base font-bold tracking-tight">{t("history.lockedTitle")}</h3>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Прошло более 24 часов с момента создания записи. История ОНИКС защищена от
-                  изменений — это гарантирует доверие к данным автомобиля.
+                  {t("history.lockedBody")}
                 </p>
               </div>
             </div>
             <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-[12px] text-muted-foreground flex items-start gap-2">
               <Info size={14} className="text-primary shrink-0 mt-0.5" />
-              <span>Обратитесь в поддержку ОНИКС для внесения изменений.</span>
+              <span>{t("history.lockedHelp")}</span>
             </div>
             <button
               onClick={onClose}
               className="mt-4 w-full glass-card rounded-2xl py-3.5 text-sm font-medium"
             >
-              Понятно
+              {t("common.understood")}
             </button>
           </motion.div>
         </motion.div>
