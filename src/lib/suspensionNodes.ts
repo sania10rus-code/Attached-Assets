@@ -1,0 +1,46 @@
+export const SUSPENSION_NODES = [
+  // Двигатель
+  { id: 'engine_oil', category: 'Двигатель', name: 'Масло двигателя', intervalKm: 15000 },
+  { id: 'oil_filter', category: 'Двигатель', name: 'Масляный фильтр', intervalKm: 15000 },
+  { id: 'air_filter', category: 'Двигатель', name: 'Воздушный фильтр', intervalKm: 30000 },
+  { id: 'spark_plugs', category: 'Двигатель', name: 'Свечи зажигания', intervalKm: 60000 },
+  { id: 'timing_belt', category: 'Двигатель', name: 'Ремень ГРМ', intervalKm: 90000 },
+  { id: 'fuel_filter', category: 'Двигатель', name: 'Топливный фильтр', intervalKm: 60000 },
+  
+  // Тормозная система
+  { id: 'brake_pads_front', category: 'Тормоза', name: 'Колодки передние', intervalKm: 30000 },
+  { id: 'brake_pads_rear', category: 'Тормоза', name: 'Колодки задние', intervalKm: 40000 },
+  { id: 'brake_discs_front', category: 'Тормоза', name: 'Диски передние', intervalKm: 60000 },
+  { id: 'brake_fluid', category: 'Тормоза', name: 'Тормозная жидкость', intervalKm: 60000 },
+  
+  // Подвеска
+  { id: 'shock_front', category: 'Подвеска', name: 'Амортизаторы передние', intervalKm: 80000 },
+  { id: 'shock_rear', category: 'Подвеска', name: 'Амортизаторы задние', intervalKm: 80000 },
+  { id: 'silent_blocks', category: 'Подвеска', name: 'Сайлентблоки', intervalKm: 100000 },
+  { id: 'ball_joints', category: 'Подвеска', name: 'Шаровые опоры', intervalKm: 80000 },
+  { id: 'stabilizer_links', category: 'Подвеска', name: 'Стойки стабилизатора', intervalKm: 60000 },
+  
+  // Рулевое управление
+  { id: 'tie_rod_ends', category: 'Рулевое', name: 'Рулевые наконечники', intervalKm: 80000 },
+  { id: 'steering_rack', category: 'Рулевое', name: 'Рулевая рейка', intervalKm: 120000 },
+  
+  // Трансмиссия
+  { id: 'transmission_oil', category: 'Трансмиссия', name: 'Масло трансмиссионное', intervalKm: 60000 },
+  { id: 'clutch', category: 'Трансмиссия', name: 'Сцепление', intervalKm: 100000 },
+  
+  // Охлаждение
+  { id: 'coolant', category: 'Охлаждение', name: 'Антифриз', intervalKm: 60000 },
+  { id: 'radiator', category: 'Охлаждение', name: 'Радиатор', intervalKm: 100000 },
+  { id: 'thermostat', category: 'Охлаждение', name: 'Термостат', intervalKm: 80000 },
+  { id: 'water_pump', category: 'Охлаждение', name: 'Помпа', intervalKm: 90000 },
+  
+  // Выхлоп
+  { id: 'exhaust_system', category: 'Выхлоп', name: 'Глушитель', intervalKm: 100000 },
+  { id: 'catalytic_converter', category: 'Выхлоп', name: 'Катализатор', intervalKm: 120000 },
+  
+  // Электрика
+  { id: 'battery', category: 'Электрика', name: 'АКБ', intervalKm: 60000 },
+  { id: 'starter', category: 'Электрика', name: 'Стартер', intervalKm: 120000 }
+] as const;
+
+export type SuspensionNode = typeof SUSPENSION_NODES[number];
