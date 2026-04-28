@@ -10,17 +10,17 @@ import MobileFrame from "@/components/layout/MobileFrame";
 import Splash from "@/pages/Splash";
 import Login from "@/pages/Login";
 import Onboarding from "@/pages/Onboarding";
-import MechanicDashboard from "@/pages/MechanicDashboard";
+import MechanicDashboard from "@/components/MechanicDashboard"; // новый компонент
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 
-import Home from "@/pages/Home";
+import Home from "@/components/Home";               // новый Home с лампочкой и советами
 import History from "@/pages/History";
 import Reminders from "@/pages/Reminders";
 import Orders from "@/pages/Orders";
-import Parts from "@/pages/Parts";
+import Parts from "@/components/Parts";             // новый Parts с каталогом
 import More from "@/pages/More";
-import Diagnostics from "@/pages/Diagnostics";
-import Tips from "@/pages/Tips";
+import Diagnostics from "@/components/Diagnostics"; // новый Diagnostics с узлами
+import Tips from "@/pages/Tips";                   // оставлен для совместимости, можно убрать позже
 
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { isPolicyAccepted, acceptPolicy } from "@/lib/privacy";
@@ -61,7 +61,6 @@ function Shell() {
   const [splashDone, setSplashDone] = useState(false);
   const [policyAccepted, setPolicyAccepted] = useState<boolean>(false);
 
-  // Re-check policy acceptance whenever the active user changes.
   useEffect(() => {
     if (user) setPolicyAccepted(isPolicyAccepted(user.login));
     else setPolicyAccepted(false);
@@ -90,7 +89,6 @@ function Shell() {
           setPolicyAccepted(true);
         }}
         onDecline={() => {
-          // Refusal returns the user to the auth screen.
           logout();
         }}
       />
@@ -101,7 +99,7 @@ function Shell() {
     return (
       <div className="min-h-[100dvh] w-full bg-black flex justify-center overflow-hidden">
         <div className="w-full max-w-[430px] relative shadow-2xl flex flex-col h-[100dvh] overflow-hidden border-x border-white/5">
-          <MechanicDashboard />
+          <MechanicDashboard />  {/* теперь использует новый компонент с чатом */}
         </div>
       </div>
     );
