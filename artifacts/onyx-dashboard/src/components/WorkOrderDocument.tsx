@@ -9,6 +9,7 @@ import {
   Package,
   PackageOpen,
   AlertTriangle,
+  Download,
 } from "lucide-react";
 import {
   addOrderFor,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/storage";
 import { findCarByVin } from "@/lib/cars";
 import { PARTS_CATALOG, findSto, type CatalogPart } from "@/lib/catalog";
+import { WORK_PRICES } from "@/lib/workPrices"; // ✅ справочник цен
 
 type Props = {
   open: boolean;
@@ -36,13 +38,7 @@ type Work = { name: string; price: number };
 type LinePart = { catalogId?: string; name: string; brand: string; sku: string; qty: number; price: number };
 
 const WORK_TYPES = ["ТО", "Ремонт", "Диагностика", "Замена"];
-const WORK_SUGGESTIONS = [
-  "Замена масла и фильтра",
-  "Замена тормозных колодок",
-  "Диагностика двигателя",
-  "Замена свечей зажигания",
-  "Развал-схождение",
-];
+const WORK_SUGGESTIONS = Object.keys(WORK_PRICES);
 
 export default function WorkOrderDocument({
   open,
@@ -71,8 +67,15 @@ export default function WorkOrderDocument({
   const [showCatalog, setShowCatalog] = useState(false);
   const [warnDiff, setWarnDiff] = useState<number | null>(null);
 
+  // ✅ Добавление работы из справочника WORK_PRICES
+  const addWorkFromRef = (workName: string) => {
+    const price = WORK_PRICES[workName] || 0;
+    setWorks((prev) => [...prev, { name: workName, price }]);
+  };
+
   const orderId = useMemo(
-    () => `${(carVin || "OWN").slice(-4)}-${Date.now().toString(36).slice(-6)}-${Math.random().toString(36).slice(2, 6)}`,
+    () =>
+      `${(carVin || "OWN").slice(-4)}-${Date.now().toString(36).slice(-6)}-${Math.random().toString(36).slice(2, 6)}`,
     [appointment?.id, carVin],
   );
 
@@ -186,6 +189,11 @@ export default function WorkOrderDocument({
     onClose();
   };
 
+  // ✅ Экспорт в PDF (открывает окно печати)
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -239,14 +247,23 @@ export default function WorkOrderDocument({
                 total={total}
                 mechanicName={mechanicName}
                 onOpenCatalog={() => setShowCatalog(true)}
+                onAddWorkFromRef={addWorkFromRef} // ✅ передаём новую функцию
               />
             </div>
 
-            <footer className="px-4 py-3 border-t border-white/10 bg-background shrink-0">
+            {/* ✅ Футер с двумя кнопками */}
+            <footer className="px-4 py-3 border-t border-white/10 bg-background shrink-0 flex gap-2">
+              <button
+                onClick={handlePrint}
+                className="flex-1 glass-card rounded-2xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform"
+              >
+                <Download size={16} />
+                Скачать PDF
+              </button>
               <button
                 onClick={trySend}
                 disabled={works.length + parts.length === 0}
-                className="w-full bg-primary text-primary-foreground rounded-2xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform disabled:opacity-40"
+                className="flex-[2] bg-primary text-primary-foreground rounded-2xl py-3.5 text-sm font-semibold flex items-center justify-center gap-2 active:scale-[.98] transition-transform disabled:opacity-40"
               >
                 <FileCheck size={16} />
                 Отправить владельцу
@@ -275,6 +292,7 @@ export default function WorkOrderDocument({
   );
 }
 
+// ✅ PaperDocument с кнопкой "Заполнить из справочника"
 function PaperDocument(props: {
   orderId: string;
   sto: ReturnType<typeof findSto>;
@@ -296,6 +314,7 @@ function PaperDocument(props: {
   total: number;
   mechanicName: string;
   onOpenCatalog: () => void;
+  onAddWorkFromRef: (workName: string) => void; // ✅ новый проп
 }) {
   const {
     orderId,
@@ -318,6 +337,7 @@ function PaperDocument(props: {
     total,
     mechanicName,
     onOpenCatalog,
+    onAddWorkFromRef,
   } = props;
 
   const dateStr = new Date().toLocaleDateString("ru-RU");
@@ -448,6 +468,25 @@ function PaperDocument(props: {
             ))}
           </datalist>
         </PaperSection>
+
+        {/* ✅ Кнопка "Заполнить из справочника" */}
+        <div className="px-5 mt-2 flex items-center gap-2">
+          <button
+            onClick={() => {
+              const workName = prompt(
+                "Введите название работы (например, " + WORK_SUGGESTIONS[0] + ")",
+              );
+              if (workName && WORK_PRICES[workName]) {
+                onAddWorkFromRef(workName);
+              } else if (workName) {
+                onWorksChange((prev) => [...prev, { name: workName, price: 0 }]);
+              }
+            }}
+            className="text-[10px] font-bold uppercase tracking-wider text-primary"
+          >
+            + Заполнить из справочника
+          </button>
+        </div>
 
         {/* Parts */}
         <PaperSection
